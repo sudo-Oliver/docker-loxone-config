@@ -45,7 +45,10 @@ RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VE
  && apt-get install -y --no-install-recommends "./kasmvncserver_bookworm_${KASMVNC_VER}_amd64.deb" \
  && rm -f "kasmvncserver_bookworm_${KASMVNC_VER}_amd64.deb" \
  && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && printf '#!/bin/sh\nmkdir -p "$HOME/.vnc"\nprintf "#!/bin/sh\\nopenbox \&\\n" > "$HOME/.vnc/xstartup"\nchmod +x "$HOME/.vnc/xstartup"\nexit 0\n' \
+    > /usr/lib/kasmvncserver/select-de.sh \
+ && chmod +x /usr/lib/kasmvncserver/select-de.sh
 
 # Wine setup for Apple Silicon + WINE_NEW_WOW64=1 (experimental wow64 mode).
 #

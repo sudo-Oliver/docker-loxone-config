@@ -12,14 +12,6 @@ DISPLAY_NUM=":1"
 # KasmVNC uses username-based auth — vncpasswd -u <user> -w -r, password via stdin
 # Format: "password\npassword\n" (set password; empty 3rd line = no view-only password)
 mkdir -p ~/.vnc
-
-# Pre-create xstartup so KasmVNC skips the interactive select-de.sh prompt
-cat > ~/.vnc/xstartup << 'XSTARTUP'
-#!/bin/sh
-openbox &
-XSTARTUP
-chmod +x ~/.vnc/xstartup
-
 printf '%s\n%s\n\n' "$VNC_PW" "$VNC_PW" | vncpasswd -u "$VNC_USER" -w -r
 # KasmVNC writes to /etc/kasmvnc/kasmvnc_users.cfg, not ~/.vnc/passwd
 [ -f ~/.vnc/passwd ] && chmod 600 ~/.vnc/passwd || true
