@@ -17,22 +17,34 @@ This container is based on the fantastic [jlesage/baseimage-gui](https://hub.doc
 ## Quick Start
 
 ```shell
-# 1. Clone
 git clone https://github.com/sudo-Oliver/docker-loxone-config
 cd docker-loxone-config
-
-# 2. Run setup (auto-detects platform, asks backend choice, configures security)
 chmod +x setup.sh && ./setup.sh
-
-# 3. Build and start (first run ~5-10 min)
-docker compose up -d --build
-
-# 4. Open in browser
-# KasmVNC (recommended): http://localhost:6901
-# Classic noVNC:         http://localhost:5800
 ```
 
-First launch installs Wine + Loxone Config inside the container (~10-15 min). Subsequent launches skip this step.
+The guided setup (~2 minutes) asks a few plain-language questions, then offers to build and start automatically. It generates a `loxone.sh` helper for daily use:
+
+```shell
+./loxone.sh start    # start (or resume)
+./loxone.sh stop     # stop
+./loxone.sh restart  # restart (fixes most issues)
+./loxone.sh status   # check if running
+./loxone.sh open     # open in browser
+```
+
+**First launch takes 10-15 minutes** to install Wine + Loxone Config inside the container. Subsequent launches take seconds. Your Loxone project files are preserved in the data folder across restarts and updates.
+
+---
+
+## What setup.sh Does
+
+1. **Detects your hardware** automatically (Apple Silicon, Intel, ARM, 32-bit x86) — no manual choice needed
+2. **Display quality** — recommends High-Quality (KasmVNC) with a plain explanation; Standard (noVNC) as fallback
+3. **Password** — explains who can access without one; enforces minimum length
+4. **Data folder** — where your Loxone projects are stored (survives container updates)
+5. **Port** — default `6901` (High-Quality) or `5800` (Standard); change if needed
+6. **Keyboard layout** — so keys work correctly inside Loxone Config
+7. Writes `.env`, generates `loxone.sh`, offers to build immediately
 
 ---
 
