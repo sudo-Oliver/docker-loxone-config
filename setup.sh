@@ -72,8 +72,10 @@ detect_platform() {
         if [ -f /usr/libexec/rosetta ]; then
           PLATFORM="linux/amd64"
           PLATFORM_CLASS="amd64"
-          ok "Apple Silicon Mac (M-chip) — Rosetta 2 active"
-          info "Running in high-performance compatibility mode. No extra setup needed."
+          ok "Apple Silicon Mac (M-chip) — Rosetta 2 available"
+          info "For best performance, enable Rosetta in Docker Desktop:"
+          echo -e "       ${DIM}Docker Desktop → Settings → General → \"Use Rosetta for x86_64/amd64 emulation\"${NC}"
+          info "Without it, Docker uses a slower fallback — everything still works."
         else
           PLATFORM="linux/arm64"
           PLATFORM_CLASS="arm64"
@@ -189,9 +191,9 @@ resolve_dockerfile() {
   case "${BACKEND}:${PLATFORM_CLASS}" in
     kasmvnc:amd64) DOCKERFILE="Dockerfile.kasmvnc";       COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
     kasmvnc:arm64) DOCKERFILE="Dockerfile.arm64-kasmvnc"; COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
-    classic:amd64) DOCKERFILE="Dockerfile.amd64";         COMPOSE_FILE="docker-compose.yml" ;;
-    classic:arm64) DOCKERFILE="Dockerfile.arm64-qemu";    COMPOSE_FILE="docker-compose.yml" ;;
-    *:386)         DOCKERFILE="Dockerfile";               COMPOSE_FILE="docker-compose.yml" ;;
+    classic:amd64) DOCKERFILE="Dockerfile.amd64";         COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
+    classic:arm64) DOCKERFILE="Dockerfile.arm64-qemu";    COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
+    *:386)         DOCKERFILE="Dockerfile";               COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
     *)             DOCKERFILE="Dockerfile.kasmvnc";       COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
   esac
   DEFAULT_PORT=5800

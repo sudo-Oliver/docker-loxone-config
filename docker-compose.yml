@@ -1,3 +1,6 @@
+# Base configuration — no ports here (ports are in mode-specific override files)
+# Run ./setup.sh to configure, then: docker compose up -d --build
+# Or manually: docker compose -f docker-compose.yml -f docker-compose.kasmvnc.yml up -d --build
 services:
   loxone-config:
     image: "local/loxone-config:latest"
@@ -5,11 +8,9 @@ services:
     platform: ${PLATFORM:-linux/amd64}
     build:
       context: .
-      dockerfile: ${DOCKERFILE:-Dockerfile.amd64}
-    ports:
-      - "${HTTP_PORT:-5800}:5800"
-      - "${VNC_PORT:-5900}:5900"
+      dockerfile: ${DOCKERFILE:-Dockerfile.kasmvnc}
     environment:
+      # Classic jlesage vars (used by Dockerfile.amd64 / Dockerfile.arm64-qemu / Dockerfile)
       - USER_ID=${USER_ID:-1000}
       - GROUP_ID=${GROUP_ID:-1000}
       - DISPLAY_WIDTH=${DISPLAY_WIDTH:-1920}

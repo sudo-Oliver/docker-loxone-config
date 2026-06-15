@@ -80,7 +80,7 @@ docker compose up -d --build
 
 ```shell
 # .env
-COMPOSE_FILE=docker-compose.yml
+COMPOSE_FILE=docker-compose.yml:docker-compose.classic.yml
 PLATFORM=linux/amd64
 DOCKERFILE=Dockerfile.amd64
 VNC_PASSWORD=yourpass   # max 8 chars
@@ -97,7 +97,7 @@ The primary image (`Dockerfile.amd64`) targets `linux/amd64` and runs via **Rose
 
 `setup.sh` detects Apple Silicon automatically and writes the correct `.env`.
 
-**Docker Desktop requirement**: Enable Rosetta in Docker Desktop → Settings → General → "Use Rosetta for x86_64/amd64 emulation on Apple Silicon".
+**Docker Desktop requirement**: Enable Rosetta in Docker Desktop → Settings → General → "Use Rosetta for x86_64/amd64 emulation on Apple Silicon". This is a one-time checkbox — without it, Docker falls back to QEMU emulation which works but is slower.
 
 **Manual setup without setup.sh**:
 
