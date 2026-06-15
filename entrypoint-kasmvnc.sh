@@ -15,18 +15,6 @@ mkdir -p ~/.vnc
 printf '%s\n%s\n\n' "$VNC_PW" "$VNC_PW" | vncpasswd -u "$VNC_USER" -w -r
 chmod 600 ~/.vnc/passwd
 
-# ── KasmVNC xstartup ─────────────────────────────────────────────────────────
-# -select-de manual tells KasmVNC to use ~/.vnc/xstartup without asking interactively.
-# openbox handles window chrome; our app loop below starts the app on the same display.
-# .de-was-selected suppresses the DE-selection prompt on subsequent container restarts.
-cat > ~/.vnc/xstartup << 'XSTARTUP'
-#!/bin/bash
-openbox &
-wait
-XSTARTUP
-chmod +x ~/.vnc/xstartup
-touch ~/.vnc/.de-was-selected
-
 # ── KasmVNC config ────────────────────────────────────────────────────────────
 RES_W="${VNC_RESOLUTION%%x*}"
 RES_H="${VNC_RESOLUTION##*x}"
@@ -37,7 +25,6 @@ desktop:
     width: ${RES_W}
     height: ${RES_H}
   allow_resize: true
-  color_depth: 24
 network:
   websocket_port: 6901
   ssl:
@@ -49,12 +36,12 @@ logging:
 EOF
 
 # ── Start KasmVNC ─────────────────────────────────────────────────────────────
-# Daemonizes Xvnc + starts built-in web server on port 6901
-# Security type + websocket port are configured via ~/.vnc/kasmvnc.yaml above
-vncserver "$DISPLAY_NUM" \
+# -noxstartup skips select-de.sh entirely — we start openbox ourselves below.
+# kasmvncserver daemonizes by default; web UI on port 6901 via kasmvnc.yaml.
+kasmvncserver "$DISPLAY_NUM" \
   -geometry "$VNC_RESOLUTION" \
   -depth 24 \
-  -select-de manual
+  -noxstartup
 
 export DISPLAY="$DISPLAY_NUM"
 
@@ -72,7 +59,8 @@ fi
 
 echo "KasmVNC ready on display $DISPLAY — web UI at http://localhost:6901"
 
-# ── Keyboard layout ───────────────────────────────────────────────────────────
+# ── Window manager + keyboard ─────────────────────────────────────────────────
+openbox &
 setxkbmap "$XLANG" 2>/dev/null || true
 
 # ── Application loop ──────────────────────────────────────────────────────────
@@ -89,4 +77,4 @@ while true; do
 done
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
-vncserver -kill "$DISPLAY_NUM" 2>/dev/null || true
+kasmvncserver -kill "$DISPLAY_NUM" 2>/dev/null || true
