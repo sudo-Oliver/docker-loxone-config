@@ -28,6 +28,8 @@ echo "init-install: running winetricks fontsmooth-rgb..."
 /usr/bin/winetricks -q fontsmooth-rgb 2>&1
 echo "init-install: running winetricks gdiplus..."
 /usr/bin/winetricks -q gdiplus 2>&1
+echo "init-install: running winetricks vcrun2015..."
+/usr/bin/winetricks -q vcrun2015 2>&1
 echo "init-install: launching installer — GUI window appears in your browser"
 wine "/config/LoxoneConfigSetup.exe" 2>&1
 echo "init-install: installer exited with $?"
