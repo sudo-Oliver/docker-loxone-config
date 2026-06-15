@@ -46,13 +46,15 @@ RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VE
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Install Wine32 via i386 multiarch (same as Dockerfile.amd64)
+# Install Wine from WineHQ stable (latest release, much newer than Debian's bundled version)
+# --install-recommends required — WineHQ uses Recommends for essential Wine runtime deps
 RUN dpkg --add-architecture i386 \
+ && mkdir -p /etc/apt/keyrings \
+ && wget -qO /etc/apt/keyrings/winehq.key https://dl.winehq.org/wine-builds/winehq.key \
+ && echo "deb [arch=amd64,i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
+    > /etc/apt/sources.list.d/winehq.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends \
-      wine \
-      wine32 \
-      wine64 \
+ && apt-get install -y --install-recommends winehq-stable \
  && wget -q -O /usr/bin/winetricks \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \

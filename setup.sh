@@ -406,7 +406,7 @@ case "\${1:-help}" in
     echo "  Open in browser: \${ACCESS_URL}"
     ;;
   update)
-    echo "Rebuilding Loxone Config image (this takes a few minutes)..."
+    echo "Rebuilding Loxone Config image with latest Wine (this takes a few minutes)..."
     docker compose up -d --build
     echo ""
     echo "  Open in browser: \${ACCESS_URL}"
@@ -445,7 +445,7 @@ case "\${1:-help}" in
     echo "  ./loxone.sh restart  → Restart (fixes most issues)"
     echo "  ./loxone.sh status   → Check if running"
     echo "  ./loxone.sh logs     → Show live logs"
-    echo "  ./loxone.sh update   → Rebuild image (after code changes)"
+    echo "  ./loxone.sh update   → Rebuild image (gets latest Wine + security patches)"
     echo "  ./loxone.sh open     → Open in browser"
     echo ""
     echo "  Browser access: \${ACCESS_URL}"

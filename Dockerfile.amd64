@@ -4,19 +4,25 @@ FROM --platform=linux/amd64 jlesage/baseimage-gui:debian-12-v4.12.4
 
 ARG XLANG=de
 
+# Install Wine from WineHQ stable (latest release, much newer than Debian's bundled version)
+# --install-recommends required — WineHQ uses Recommends for essential Wine runtime deps
 RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-      wine \
-      wine32 \
-      wine64 \
       wget \
+      ca-certificates \
       cabextract \
       unzip \
       xterm \
       x11-xkb-utils \
       xkb-data \
- && wget -O /usr/bin/winetricks \
+ && mkdir -p /etc/apt/keyrings \
+ && wget -qO /etc/apt/keyrings/winehq.key https://dl.winehq.org/wine-builds/winehq.key \
+ && echo "deb [arch=amd64,i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
+    > /etc/apt/sources.list.d/winehq.list \
+ && apt-get update \
+ && apt-get install -y --install-recommends winehq-stable \
+ && wget -q -O /usr/bin/winetricks \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \
  && apt-get clean \

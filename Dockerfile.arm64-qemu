@@ -21,19 +21,25 @@ RUN apt-get update \
       qemu-user-static \
  && rm -rf /var/lib/apt/lists/*
 
-# With qemu-i386-static registered in binfmt_misc, i386 multiarch works on ARM64
+# Wine32 from WineHQ stable i386 packages — QEMU handles i386→arm64 translation at runtime
+# arch=i386 only: WineHQ has no native arm64 build; we install the 32-bit i386 packages
 RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-      wine \
-      wine32 \
       wget \
+      ca-certificates \
       cabextract \
       unzip \
       xterm \
       x11-xkb-utils \
       xkb-data \
- && wget -O /usr/bin/winetricks \
+ && mkdir -p /etc/apt/keyrings \
+ && wget -qO /etc/apt/keyrings/winehq.key https://dl.winehq.org/wine-builds/winehq.key \
+ && echo "deb [arch=i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
+    > /etc/apt/sources.list.d/winehq.list \
+ && apt-get update \
+ && apt-get install -y --install-recommends winehq-stable:i386 \
+ && wget -q -O /usr/bin/winetricks \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \
  && apt-get clean \

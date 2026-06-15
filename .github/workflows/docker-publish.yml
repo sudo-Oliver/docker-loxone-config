@@ -1,6 +1,8 @@
 name: Docker
 
 on:
+  schedule:
+    - cron: '0 3 * * 1'  # Every Monday 03:00 UTC — rebuild with latest WineHQ stable
   workflow_dispatch:
   push:
     branches: [ "main" ]
@@ -51,7 +53,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=kasmvnc-amd64
+          cache-from: ${{ github.event_name != 'schedule' && 'type=gha,scope=kasmvnc-amd64' || '' }}
           cache-to: type=gha,mode=max,scope=kasmvnc-amd64
 
   build-kasmvnc-arm64:
@@ -97,7 +99,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=kasmvnc-arm64
+          cache-from: ${{ github.event_name != 'schedule' && 'type=gha,scope=kasmvnc-arm64' || '' }}
           cache-to: type=gha,mode=max,scope=kasmvnc-arm64
 
   build-amd64:
@@ -145,7 +147,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=amd64
+          cache-from: ${{ github.event_name != 'schedule' && 'type=gha,scope=amd64' || '' }}
           cache-to: type=gha,mode=max,scope=amd64
 
       - name: Sign the published Docker image
@@ -198,7 +200,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=arm64-qemu
+          cache-from: ${{ github.event_name != 'schedule' && 'type=gha,scope=arm64-qemu' || '' }}
           cache-to: type=gha,mode=max,scope=arm64-qemu
 
   build-386:
@@ -244,5 +246,5 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=386
+          cache-from: ${{ github.event_name != 'schedule' && 'type=gha,scope=386' || '' }}
           cache-to: type=gha,mode=max,scope=386
