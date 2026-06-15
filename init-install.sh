@@ -58,20 +58,18 @@ if [ ! -f "/config/LoxoneConfigSetup.exe" ]; then
   fi
 fi
 
-export WINEDEBUG=-all
-# WINE_NEW_WOW64=1 lets wine64 run 32-bit PE files without a separate wine32 process.
-# Required on Apple Silicon where wine32 (i386) crashes under QEMU page-size mismatch.
+export WINEDEBUG=err
 export WINE_NEW_WOW64=1
 
-echo "wine binary: $(which wine)"
-echo "wine version: $(wine --version 2>&1)"
+echo "init-install: wine=$(which wine) version=$(wine --version 2>&1)"
+echo "init-install: WINEARCH=$WINEARCH WINEPREFIX=$WINEPREFIX WINE_NEW_WOW64=$WINE_NEW_WOW64"
 
-echo Installing winetricks helper for fonts and sharper rendering..
-/usr/bin/winetricks fontsmooth-rgb
-/usr/bin/winetricks gdiplus
-echo Installing LoxoneConfig..
-wine "/config/LoxoneConfigSetup.exe"
+echo "init-install: running winetricks fontsmooth-rgb..."
+/usr/bin/winetricks -q fontsmooth-rgb 2>&1
+echo "init-install: running winetricks gdiplus..."
+/usr/bin/winetricks -q gdiplus 2>&1
+echo "init-install: launching Loxone Config installer (GUI appears in browser)..."
+wine "/config/LoxoneConfigSetup.exe" 2>&1
 WINE_EXIT=$?
-echo "wine installer exit code: $WINE_EXIT"
-echo Install finished. yay!
+echo "init-install: installer exited with $WINE_EXIT"
 exit 0
