@@ -13,7 +13,8 @@ DISPLAY_NUM=":1"
 # Format: "password\npassword\n" (set password; empty 3rd line = no view-only password)
 mkdir -p ~/.vnc
 printf '%s\n%s\n\n' "$VNC_PW" "$VNC_PW" | vncpasswd -u "$VNC_USER" -w -r
-chmod 600 ~/.vnc/passwd
+# KasmVNC writes to /etc/kasmvnc/kasmvnc_users.cfg, not ~/.vnc/passwd
+[ -f ~/.vnc/passwd ] && chmod 600 ~/.vnc/passwd || true
 
 # ── KasmVNC config ────────────────────────────────────────────────────────────
 RES_W="${VNC_RESOLUTION%%x*}"
