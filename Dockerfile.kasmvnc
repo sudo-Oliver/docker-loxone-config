@@ -21,6 +21,7 @@ RUN apt-get update \
       x11-xkb-utils \
       xkb-data \
       unzip \
+      openbox \
       libglu1-mesa \
       libxcomposite1 \
       libxcursor1 \

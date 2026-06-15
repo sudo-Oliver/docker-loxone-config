@@ -15,7 +15,7 @@ services:
       - GROUP_ID=${GROUP_ID:-1000}
       - DISPLAY_WIDTH=${DISPLAY_WIDTH:-1920}
       - DISPLAY_HEIGHT=${DISPLAY_HEIGHT:-1080}
-      - HOME=/config/
+      - HOME=/config
       - WINEPREFIX=/config/wine
       - WINEARCH=win32
       - XLANG=${XLANG:-de}
