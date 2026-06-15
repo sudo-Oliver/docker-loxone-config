@@ -97,7 +97,12 @@ The primary image (`Dockerfile.amd64`) targets `linux/amd64` and runs via **Rose
 
 `setup.sh` detects Apple Silicon automatically and writes the correct `.env`.
 
-**Docker Desktop requirement**: Enable Rosetta in Docker Desktop → Settings → General → "Use Rosetta for x86_64/amd64 emulation on Apple Silicon". This is a one-time checkbox — without it, Docker falls back to QEMU emulation which works but is slower.
+**Docker Desktop requirement**: Enable Rosetta — exact path:
+
+> Docker Desktop → **Settings** → **General** → **Virtual Machine Options**
+> ☑ **Use Rosetta for x86/amd64 emulation on Apple Silicon**
+
+One-time checkbox. Without it, Docker falls back to QEMU emulation which works but is noticeably slower. While you're there, *VirtioFS* is the recommended file sharing option (Docker Desktop usually selects it automatically).
 
 **Manual setup without setup.sh**:
 
