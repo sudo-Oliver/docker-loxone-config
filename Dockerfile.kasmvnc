@@ -47,15 +47,14 @@ RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VE
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Install Wine from WineHQ stable (latest release, much newer than Debian's bundled version)
-# --install-recommends required — WineHQ uses Recommends for essential Wine runtime deps
-RUN dpkg --add-architecture i386 \
- && mkdir -p /etc/apt/keyrings \
- && wget -qO /etc/apt/keyrings/winehq.key https://dl.winehq.org/wine-builds/winehq.key \
- && echo "deb [arch=amd64,i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
-    > /etc/apt/sources.list.d/winehq.list \
- && apt-get update \
- && apt-get install -y --install-recommends winehq-stable \
+# wine64 only — Rosetta translates x86_64 binaries on Apple Silicon.
+# wine32 is i386; Rosetta does NOT cover i386, so it falls to QEMU-user which
+# crashes on Apple Silicon's 16KB host pages. wine64 + WINEARCH=win64 avoids
+# any i386 process: 32-bit Windows apps run through Wine's internal WoW64 layer.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      wine64 \
+ && ln -sf /usr/bin/wine64 /usr/local/bin/wine \
  && wget -q -O /usr/bin/winetricks \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \

@@ -26,5 +26,5 @@ services:
       - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
       - XLANG=${XLANG:-de}
       - WINEPREFIX=/config/wine
-      - WINEARCH=win32
+      - WINEARCH=win64
       - KEEP_APP_RUNNING=${KEEP_APP_RUNNING:-1}
