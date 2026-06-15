@@ -1,0 +1,33 @@
+# linux/amd64 variant — runs natively on Intel/AMD; runs via Rosetta 2 on Apple Silicon (fast)
+# Debian base supports wine32 via dpkg i386 multiarch, unlike Alpine which requires linux/386
+FROM --platform=linux/amd64 jlesage/baseimage-gui:debian-12-v4.5
+
+ARG XLANG=de
+
+RUN dpkg --add-architecture i386 \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      wine \
+      wine32 \
+      wine64 \
+      wget \
+      cabextract \
+      xterm \
+      x11-xkb-utils \
+      xkb-data \
+ && wget -O /usr/bin/winetricks \
+      https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
+ && chmod +x /usr/bin/winetricks \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/*
+
+COPY init-install.sh /init-install.sh
+COPY startapp.sh /startapp.sh
+
+# Set remote resizing as default
+# https://github.com/jlesage/docker-baseimage-gui/issues/112
+RUN sed -i "s/resize = 'scale';/resize = 'remote';/g" /opt/noVNC/app/ui.js
+
+RUN chmod a+rx /startapp.sh /init-install.sh
+
+RUN set-cont-env APP_NAME "Loxone Config"

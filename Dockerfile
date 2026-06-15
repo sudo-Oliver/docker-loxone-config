@@ -1,4 +1,6 @@
-# force platfrom=linux/386 because alpine x64 doesn't support wine32 and LoxoneConfig is win32
+# linux/386 variant — for legacy 32-bit x86 systems only
+# Alpine does not support wine32 on amd64, so 32-bit Alpine is used here
+# For Apple Silicon / amd64 / arm64 use Dockerfile.amd64 instead
 FROM --platform=linux/386 jlesage/baseimage-gui:alpine-3.18-v4.5
 
 ARG XLANG=de

@@ -6,18 +6,29 @@ echo
 echo
 echo "Installing CLEAN LoxoneConfig into ./config/wine directory"
 echo
-read -p "Press enter to continue"
+read -p "Press enter to continue" || true
 echo
 
 if [ ! -f "/config/LoxoneConfigSetup.exe" ]; then
   cd /config
-  echo "Try to auto download loxone config installer.."
-  # urgh, loxone doesn't provide a direct link to latest installer, lets parse out the download link while we cry a little
-  wget -O i.zip $(wget -O - https://www.loxone.com/enen/support/downloads/ | sed -r 's~(href="|src=")([^"]+).*~\n\1\2~g' | awk -F"=\"" '{print $2}' | grep LoxoneConfigSetup_ |head -1)
-  unzip i.zip && rm i.zip
+  echo "Trying to auto-download Loxone Config installer..."
+  DOWNLOAD_URL=$(wget -q -O - https://www.loxone.com/enen/support/downloads/ \
+    | sed -r 's~(href="|src=")([^"]+).*~\n\1\2~g' \
+    | awk -F"=\"" '{print $2}' \
+    | grep -i 'LoxoneConfigSetup_' \
+    | head -1) || true
+
+  if [ -n "$DOWNLOAD_URL" ]; then
+    wget -O i.zip "$DOWNLOAD_URL" && unzip i.zip && rm -f i.zip || true
+  fi
 
   if [ ! -f "/config/LoxoneConfigSetup.exe" ]; then
-    echo "ERROR: ./config/LoxoneConfigSetup.exe missing! auto download failed too! please put installer file there.."
+    echo ""
+    echo "ERROR: auto-download failed or LoxoneConfigSetup.exe not found."
+    echo ""
+    echo "Manual fix: download LoxoneConfigSetup_*.exe from https://www.loxone.com/enen/support/downloads/"
+    echo "and place it at: ./config/LoxoneConfigSetup.exe"
+    echo ""
     exit 1
   fi
 fi

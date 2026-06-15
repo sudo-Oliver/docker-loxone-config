@@ -1,22 +1,27 @@
-version: '3.8'
 services:
   loxone-config:
     image: "local/loxone-config:latest"
     container_name: loxone-config
+    platform: ${PLATFORM:-linux/amd64}
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ${DOCKERFILE:-Dockerfile.amd64}
     ports:
-      - "5800:5800"
+      - "${HTTP_PORT:-5800}:5800"
+      - "${VNC_PORT:-5900}:5900"
     environment:
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - DISPLAY_WIDTH=1920
-      - DISPLAY_HEIGHT=1080
+      - USER_ID=${USER_ID:-1000}
+      - GROUP_ID=${GROUP_ID:-1000}
+      - DISPLAY_WIDTH=${DISPLAY_WIDTH:-1920}
+      - DISPLAY_HEIGHT=${DISPLAY_HEIGHT:-1080}
       - HOME=/config/
       - WINEPREFIX=/config/wine
       - WINEARCH=win32
-      - XLANG=de
+      - XLANG=${XLANG:-de}
+      - VNC_PASSWORD=${VNC_PASSWORD:-}
+      - SECURE_CONNECTION=${SECURE_CONNECTION:-0}
+      - KEEP_APP_RUNNING=${KEEP_APP_RUNNING:-1}
     volumes:
-      - "./config:/config:rw"
-      - "./config/Loxone:/config/wine/drive_c/users/app/Documents/Loxone:rw"
+      - "${CONFIG_PATH:-./config}:/config:rw"
+      - "${LOXONE_PATH:-./config/Loxone}:/config/wine/drive_c/users/app/Documents/Loxone:rw"
+    restart: unless-stopped

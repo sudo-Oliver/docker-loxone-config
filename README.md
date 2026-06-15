@@ -1,236 +1,283 @@
-# lian/docker-loxone-config
+# sudo-Oliver/docker-loxone-config
 
 Docker container for [Loxone Config](https://www.loxone.com/dede/produkte/loxone-config/)
 
-The windows GUI of the Loxone Config application is run through [Wine](https://en.wikipedia.org/wiki/Wine_(software)) and accessed on a modern web browser (no installation or configuration needed on client side) or via any VNC client.
+The Windows GUI of the Loxone Config application is run through [Wine](https://en.wikipedia.org/wiki/Wine_(software)) and accessed via a modern web browser (no installation needed on client side) or any VNC client.
+
+350 MB RAM. Runs on anything with Docker: Mac, Linux, Raspberry Pi, NAS, home server.
 
 ---
 
-This container is based on the absolutely fantastic [jlesage/baseimage-gui](https://hub.docker.com/r/jlesage/baseimage-gui). All the hard work to make GUI applications possible inside your browser via docker has been done by them, and I shamelessly copied the README.md from [mikenye/docker-picard](https://github.com/mikenye/docker-picard). For advanced usage or modification I suggest you check out their [README](https://github.com/jlesage/docker-baseimage-gui).
+> **Based on [lian/docker-loxone-config](https://github.com/lian/docker-loxone-config)** — the original brilliant idea of running Loxone Config via Wine + noVNC in Docker belongs entirely to [lian](https://github.com/lian). This fork adds Apple Silicon support (Rosetta 2 primary + QEMU-user fallback), a platform auto-detection setup script, security defaults, and cross-platform CI.
+
+This container is based on the fantastic [jlesage/baseimage-gui](https://hub.docker.com/r/jlesage/baseimage-gui).
+
+---
+
+## Quick Start
+
+```shell
+# 1. Clone and enter the repo
+git clone https://github.com/lian/docker-loxone-config
+cd docker-loxone-config
+
+# 2. Run setup (auto-detects your platform, configures security)
+chmod +x setup.sh && ./setup.sh
+
+# 3. Build and start (first run ~5-10 min, subsequent starts are fast)
+docker compose up -d --build
+
+# 4. Open in browser
+open http://localhost:5800
+```
+
+First launch installs Wine + Loxone Config inside the container (~10-15 min in an xterm window). Subsequent launches skip this step.
+
+---
+
+## Apple Silicon (M1/M2/M3/M4)
+
+The primary image (`Dockerfile.amd64`) targets `linux/amd64` and runs via **Rosetta 2** on Apple Silicon — near-native speed, no manual configuration needed.
+
+`setup.sh` detects Apple Silicon automatically and writes the correct `.env`.
+
+**Docker Desktop requirement**: Enable Rosetta in Docker Desktop → Settings → General → "Use Rosetta for x86_64/amd64 emulation on Apple Silicon".
+
+**Manual setup without setup.sh**:
+
+```shell
+# .env
+PLATFORM=linux/amd64
+DOCKERFILE=Dockerfile.amd64
+VNC_PASSWORD=yourpassword
+
+docker compose up -d --build
+```
+
+---
+
+## Apple Silicon — QEMU Fallback (Rosetta-free)
+
+> **Use this only if Rosetta 2 is unavailable.** Rosetta 2 (`Dockerfile.amd64`) is always faster — use it as long as Apple supports it.
+
+If Rosetta 2 is deprecated or unavailable, `Dockerfile.arm64-qemu` provides a fully independent fallback:
+
+- Native `linux/arm64` container — no Apple dependency
+- `qemu-i386-static` inside the container translates i386 Wine ELF → ARM64 at runtime
+- Performance: ~3-5x slower than Rosetta 2, but sufficient for Loxone Config GUI usage
+- Works identically on Linux ARM64 (Raspberry Pi 64-bit, ARM servers)
+
+**One-time host setup** (registers i386 binfmt on the host kernel — re-run after reboot):
+
+```shell
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+```
+
+`setup.sh` detects Rosetta availability and offers to run this automatically when needed.
+
+**Manual setup for QEMU fallback:**
+
+```shell
+# .env
+PLATFORM=linux/arm64
+DOCKERFILE=Dockerfile.arm64-qemu
+VNC_PASSWORD=yourpassword
+
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+docker compose up -d --build
+```
+
+---
+
+## Platform Matrix
+
+| Host | Platform | Dockerfile | Speed |
+|------|----------|------------|-------|
+| Apple Silicon macOS + Rosetta 2 | linux/amd64 | Dockerfile.amd64 | Fast (Rosetta 2) — **primary** |
+| Apple Silicon macOS (no Rosetta) | linux/arm64 | Dockerfile.arm64-qemu | ~3-5x slower than Rosetta — **fallback** |
+| Intel macOS / Linux amd64 | linux/amd64 | Dockerfile.amd64 | Native |
+| Linux ARM64 (RPi 64-bit, ARM server) | linux/arm64 | Dockerfile.arm64-qemu | QEMU-user (adequate for GUI) |
+| Legacy 32-bit x86 | linux/386 | Dockerfile | Native |
 
 ---
 
 ## Usage
 
-Here is an example of a `docker-compose.yml` file that can be used with
-[Docker Compose](https://docs.docker.com/compose/overview/).
+### docker-compose.yml
 
-Make sure to adjust according to your needs.  Note that only mandatory network
-ports are part of the example.
+The `docker-compose.yml` reads settings from `.env`. Run `./setup.sh` to generate it, or copy `.env.example`:
+
+```shell
+cp .env.example .env
+# edit .env to your needs
+docker compose up -d --build
+```
+
+Minimal example without setup.sh:
 
 ```yaml
-version: '3.8'
 services:
   loxone-config:
-    image: "ghcr.io/lian/docker-loxone-config:main"
+    image: "local/loxone-config:latest"
     container_name: loxone-config
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.amd64
     ports:
       - "5800:5800"
     environment:
-      - VNC_PASSWORD=test
+      - VNC_PASSWORD=changeme
       - USER_ID=1000
       - GROUP_ID=1000
       - DISPLAY_WIDTH=1920
       - DISPLAY_HEIGHT=1080
       - HOME=/config/
       - WINEPREFIX=/config/wine
+      - WINEARCH=win32
       - XLANG=de
+      - KEEP_APP_RUNNING=1
     volumes:
       - "./config:/config:rw"
+      - "./config/Loxone:/config/wine/drive_c/users/app/Documents/Loxone:rw"
+    restart: unless-stopped
 ```
 
-**NOTE**: On first launch, the required fonts, libraries and Loxone Config are installed into `/config/wine`. Further launches skip this step. To start clean again, delete `/config/wine`.
-
-Launch the Loxone Config docker container with the following commands:
-
-```shell
-# create empty config directory
-mkdir -p config
-
-# ensure USER_ID and GROUP_ID from docker-compose.yml are correct
-id
-
-# start loxone config container
-docker compose up
-```
-
-Browse to `http://your-host-ip:5800` to access the Loxone Config GUI.
+**NOTE**: On first launch, required fonts, libraries and Loxone Config are installed into `/config/wine`. Further launches skip this step. To start clean, delete `/config/wine`.
 
 ### Data Paths
 
-The following table describes data paths used by the container.  Your host folder `./config` is mounted into the container to `/config`
+| Container path | Description |
+|----------------|-------------|
+| `/config` | Persistent data: config, logs, Wine prefix |
+| `/config/Loxone` | Loxone Config project files |
+| `/config/wine` | Wine installation (delete for fresh install) |
 
-| Container path  | Description |
-|-----------------|-------------|
-|`/config`| This is where the application stores its configuration, log and any files needing persistency. |
-|`/config/Loxone`| This is where Loxone Config stores its configuration and project files. |
-|`/config/wine`| This is where Wine stores its Loxone Config Windows installation. (can be removed for a fresh install) |
+**Custom paths** — set via `.env` or environment:
+
+```
+CONFIG_PATH=/mnt/user/loxone-daten
+LOXONE_PATH=/mnt/user/loxone-daten/Loxone
+```
 
 ### Environment Variables
 
-To customize some properties of the container, the following environment
-variables can be changed inside `docker-compose.yml`file. Value
-of this parameter has the format `<VARIABLE_NAME>=<VALUE>`.
-
-| Variable       | Description                                  | Default |
-|----------------|----------------------------------------------|---------|
-|`USER_ID`| ID of the user the application runs as.  See [User/Group IDs](#usergroup-ids) to better understand when this should be set. | `1000` |
-|`GROUP_ID`| ID of the group the application runs as.  See [User/Group IDs](#usergroup-ids) to better understand when this should be set. | `1000` |
-|`TZ`| [TimeZone] of the container.  Timezone can also be set by mapping `/etc/localtime` between the host and the container. | `Etc/UTC` |
-|`KEEP_APP_RUNNING`| When set to `1`, the application will be automatically restarted if it crashes or if user quits it. | `0` |
-|`DISPLAY_WIDTH`| Width (in pixels) of the application's window. | `1280` |
-|`DISPLAY_HEIGHT`| Height (in pixels) of the application's window. | `768` |
-|`SECURE_CONNECTION`| When set to `1`, an encrypted connection is used to access the application's GUI (either via web browser or VNC client).  See the [Security](#security) section for more details. | `0` |
-|`VNC_PASSWORD`| Password needed to connect to the application's GUI.  See the [VNC Password](#vnc-password) section for more details. | (unset) |
-|`XLANG`| Keyboard map to be used by XVNC/Loxone Config. Use this to set specific keyboard maps via setxkbmap. See the [keyboard maps](#keyboard-maps) section for more details. | `de` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `USER_ID` | UID the app runs as | `1000` |
+| `GROUP_ID` | GID the app runs as | `1000` |
+| `TZ` | Timezone | `Etc/UTC` |
+| `KEEP_APP_RUNNING` | Auto-restart on crash | `1` |
+| `DISPLAY_WIDTH` | Window width (px) | `1920` |
+| `DISPLAY_HEIGHT` | Window height (px) | `1080` |
+| `SECURE_CONNECTION` | Enable HTTPS + SSL-VNC | `0` |
+| `VNC_PASSWORD` | Web/VNC password (max 8 chars) | (unset) |
+| `XLANG` | Keyboard layout | `de` |
 
 ### Ports
 
-Here is the list of ports used by the container.  They can be mapped to the host
-via the `ports` inside `docker-compose.yml`. Each mapping is defined in the
-following format: `<HOST_PORT>:<CONTAINER_PORT>`.  The port number inside the
-container cannot be changed, but you are free to use any port on the host side.
+| Port | Description |
+|------|-------------|
+| 5800 | Web browser (noVNC) |
+| 5900 | VNC client (optional) |
 
-| Port | Mapping to host | Description |
-|------|-----------------|-------------|
-| 5800 | Mandatory | Port used to access the application's GUI via the web interface. |
-| 5900 | Optional | Port used to access the application's GUI via the VNC protocol.  Optional if no VNC client is used. |
+For localhost-only access: `127.0.0.1:5800:5800` instead of `5800:5800`.
 
-**NOTE**: For additional security you should bind to localhost only to prevent other devices in your network from accessing the Loxone Config. `127.0.0.1:5800:5800` instead of `5800:5800` inside `docker-compose.yml`.
+### Keyboard Maps
 
-### Keyboard maps
+| Map | Language |
+|-----|----------|
+| `us` | English (US) |
+| `en` | English |
+| `at` | German (Austria) |
+| `ch` | German (Switzerland) |
+| `de` | German (default) |
+| `fr` | French |
 
-Keyboard maps are set via setxkbmap. See the [setxkbmap configuration options](https://gist.github.com/jatcwang/ae3b7019f219b8cdc6798329108c9aee) section "layout" for more details.
-
-Common keyboard maps are:
-
-| map | Language | Default |
-|-----|----------| ------- |
-| us | English (US) | - |
-| en | English | - |
-| at | German (Austria) | - |
-| ch | German (Switzerland) | - |
-| de | German | yes |
-| fr | French | - |
-
-## User/Group IDs
-
-When using data volumes, permissions issues can occur between the
-host and the container.  For example, the user within the container may not
-exists on the host.  This could prevent the host from properly accessing files
-and folders on the shared volume.
-
-To avoid any problem, you can specify the user the application should run as.
-
-This is done by passing the user ID and group ID to the container via the
-`USER_ID` and `GROUP_ID` environment variables.
-
-To find the right IDs to use, issue the following command on the host, with the
-user owning the data volume on the host:
-
-```shell
-id <username>
-```
-
-Which gives an output like this one:
-
-```text
-uid=1000(myuser) gid=1000(myuser) groups=1000(myuser),4(adm),24(cdrom),27(sudo),46(plugdev),113(lpadmin)
-```
-
-The value of `uid` (user ID) and `gid` (group ID) are the ones that you should
-be given the container.
-
-## Accessing the GUI
-
-Assuming that container's ports are mapped to the same host's ports, the
-graphical interface of the application can be accessed via:
-
-* A web browser:
-
-```text
-http://<HOST IP ADDR>:5800
-```
-
-* Any VNC client:
-
-```text
-<HOST IP ADDR>:5900
-```
+---
 
 ## Security
 
-By default, access to the application's GUI is done over an unencrypted
-connection (HTTP or VNC).
+**Do not expose this service to the internet or local network without authentication.**
 
-Secure connection can be enabled via the `SECURE_CONNECTION` environment
-variable.  See the [Environment Variables](#environment-variables) section for
-more details on how to set an environment variable.
+### Option 1: VNC Password (minimum)
 
-When enabled, application's GUI is performed over an HTTPs connection when
-accessed with a browser.  All HTTP accesses are automatically redirected to
-HTTPs.
+```
+VNC_PASSWORD=yourpassword   # max 8 chars (RFC 6143)
+```
 
-When using a VNC client, the VNC connection is performed over SSL.  Note that
-few VNC clients support this method.  [SSVNC] is one of them.
+### Option 2: VNC Password + HTTPS
 
-[SSVNC]: http://www.karlrunge.com/x11vnc/ssvnc.html
+```
+VNC_PASSWORD=yourpassword
+SECURE_CONNECTION=1
+```
 
-### Certificates
+With `SECURE_CONNECTION=1`, a self-signed certificate is generated automatically in `/config/certs/`. Provide your own:
 
-Here are the certificate files needed by the container.  By default, when they
-are missing, self-signed certificates are generated and used.  All files have
-PEM encoded, x509 certificates.
+| File | Purpose |
+|------|---------|
+| `/config/certs/vnc-server.pem` | VNC SSL (private key + cert) |
+| `/config/certs/web-privkey.pem` | HTTPS private key |
+| `/config/certs/web-fullchain.pem` | HTTPS certificate chain |
 
-| Container Path                  | Purpose                    | Content |
-|---------------------------------|----------------------------|---------|
-|`/config/certs/vnc-server.pem`   |VNC connection encryption.  |VNC server's private key and certificate, bundled with any root and intermediate certificates.|
-|`/config/certs/web-privkey.pem`  |HTTPs connection encryption.|Web server's private key.|
-|`/config/certs/web-fullchain.pem`|HTTPs connection encryption.|Web server's certificate, bundled with any root and intermediate certificates.|
+### Option 3: SSH Tunnel (recommended for remote access)
 
-**NOTE**: To prevent any certificate validity warnings/errors from the browser
-or VNC client, make sure to supply your own valid certificates.
+Keep port 5800 bound to localhost only, access via SSH tunnel:
 
-**NOTE**: Certificate files are monitored and relevant daemons are automatically
-restarted when changes are detected.
+```shell
+ssh -L 5800:localhost:5800 user@your-server
+# then open: http://localhost:5800
+```
 
-### VNC Password
+No exposed ports, no certificates needed.
 
-To restrict access to your application, a password can be specified.  This can
-be done via two methods:
+### Option 4: Localhost-only binding
 
-* By using the `VNC_PASSWORD` environment variable.
-* By creating a `.vncpass_clear` file at the root of the `/config` volume.
-  This file should contains the password in clear-text.  During the container
-  startup, content of the file is obfuscated and moved to `.vncpass`.
+```yaml
+ports:
+  - "127.0.0.1:5800:5800"
+```
 
-The level of security provided by the VNC password depends on two things:
+---
 
-* The type of communication channel (encrypted/unencrypted).
-* How secure access to the host is.
+## User/Group IDs
 
-When using a VNC password, it is highly desirable to enable the secure
-connection to prevent sending the password in clear over an unencrypted channel.
+```shell
+id   # shows your uid and gid
+```
 
-**ATTENTION**: Password is limited to 8 characters.  This limitation comes from
-the Remote Framebuffer Protocol [RFC](https://tools.ietf.org/html/rfc6143) (see
-section [7.2.2](https://tools.ietf.org/html/rfc6143#section-7.2.2)).  Any
-characters beyhond the limit are ignored.
+Set `USER_ID` and `GROUP_ID` to match the host user owning the config volume. Avoids permission issues on mounted volumes.
+
+---
+
+## Accessing the GUI
+
+```
+# Browser (noVNC)
+http://<HOST IP>:5800
+
+# VNC client
+<HOST IP>:5900
+```
+
+---
 
 ## Shell Access
-
-To get shell access to a the running container, execute the following command:
 
 ```shell
 docker exec -it loxone-config bash
 ```
 
+---
+
 ## Getting Help
 
-Having troubles with the container or have questions?  Please [create a new issue](https://github.com/lian/docker-loxone-config/issues).
+[Create a new issue](https://github.com/lian/docker-loxone-config/issues)
 
-## Thanks
+## Credits & Thanks
 
+* **[lian](https://github.com/lian)** — original author of [docker-loxone-config](https://github.com/lian/docker-loxone-config), the idea and core implementation
+* **[jlesage](https://github.com/jlesage)** — [baseimage-gui](https://hub.docker.com/r/jlesage/baseimage-gui) which makes all the noVNC/X11/GUI-in-Docker magic possible
 * [t_heinrich](https://www.loxforum.com/member/1843-t_heinrich) for bug reports
-* [timboettiger](https://github.com/timboettiger) for [keyboard maps](#keyboard-maps)
-
+* [timboettiger](https://github.com/timboettiger) for keyboard maps
