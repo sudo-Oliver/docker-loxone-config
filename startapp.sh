@@ -29,9 +29,8 @@ if [ -z "$LOXONE_EXE" ]; then
   exit 1
 fi
 
-if [ ! -f "/config/wine/drive_c/windows/system32/mfc140u.dll" ]; then
-  echo "startapp: mfc140u.dll missing — installing vcrun2015..."
-  /usr/bin/winetricks -q vcrun2015 2>&1
+if [ ! -f "/config/wine/drive_c/windows/syswow64/mfc140u.dll" ]; then
+  echo "startapp: mfc140u.dll missing — run docker compose down + rm -rf ./config/wine + docker compose up"
 fi
 
 echo "startapp: launching $LOXONE_EXE"

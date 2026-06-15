@@ -27,4 +27,5 @@ services:
       - XLANG=${XLANG:-de}
       - WINEPREFIX=/config/wine
       - WINEARCH=win64
+      - WINEDLLOVERRIDES=mfc140u,msvcp140,vcruntime140,vcruntime140_1,ucrtbase,concrt140=n,b
       - KEEP_APP_RUNNING=${KEEP_APP_RUNNING:-1}
