@@ -560,9 +560,9 @@ show_summary() {
           fi
           echo ""
         fi
-        echo -e "  ${DIM}On first launch, an installation window appears in your browser"
-        echo -e "  and installs Wine + Loxone Config (one-time, ~10-15 min)."
-        echo -e "  You can close and reopen the browser tab while this runs.${NC}"
+        echo -e "  ${DIM}On first launch, the Loxone Config setup wizard opens in your browser."
+        echo -e "  Click through it to install — takes ~10-15 min the first time."
+        echo -e "  Requires ${CONFIG_PATH}/LoxoneConfigSetup.exe to be present.${NC}"
         echo ""
         if command -v open &>/dev/null; then
           read -r -p "  Open browser now? [Y/n]: " open_ans
@@ -576,6 +576,68 @@ show_summary() {
   esac
 }
 
+# ── installer download step ───────────────────────────────────────────────────
+setup_installer() {
+  header "Loxone Config Installer"
+  echo ""
+  echo "  Before starting, you need the Loxone Config installer (.exe)."
+  echo ""
+  echo "  1. Download it from:"
+  echo -e "     ${BOLD}https://www.loxone.com/enen/support/downloads/${NC}"
+  echo "     (look for \"Loxone Config\" → download the Windows .exe)"
+  echo ""
+  echo "  2. Place it here (exact filename matters):"
+  echo -e "     ${BOLD}${CONFIG_PATH}/LoxoneConfigSetup.exe${NC}"
+  echo ""
+
+  # Check if already present
+  if [ -f "${CONFIG_PATH}/LoxoneConfigSetup.exe" ]; then
+    ok "Found: ${CONFIG_PATH}/LoxoneConfigSetup.exe"
+    sep
+    return
+  fi
+
+  # Check common download locations
+  local found_at=""
+  for f in \
+    "$HOME/Downloads/LoxoneConfigSetup.exe" \
+    "$HOME/Downloads/"LoxoneConfigSetup*.exe \
+    "$HOME/Desktop/"LoxoneConfigSetup*.exe; do
+    if [ -f "$f" ]; then
+      found_at="$f"
+      break
+    fi
+  done
+
+  if [ -n "$found_at" ]; then
+    info "Found installer at: $found_at"
+    read -r -p "  Copy it to ${CONFIG_PATH}/LoxoneConfigSetup.exe? [Y/n]: " copy_ans
+    case "${copy_ans:-Y}" in
+      [Nn]*) ;;
+      *)
+        cp "$found_at" "${CONFIG_PATH}/LoxoneConfigSetup.exe"
+        ok "Copied to ${CONFIG_PATH}/LoxoneConfigSetup.exe"
+        sep
+        return
+        ;;
+    esac
+  fi
+
+  echo "  Once downloaded, run this command:"
+  echo -e "    ${BOLD}cp ~/Downloads/LoxoneConfigSetup*.exe ${CONFIG_PATH}/LoxoneConfigSetup.exe${NC}"
+  echo ""
+  read -r -p "  Press Enter once you've placed the file (or skip for now): " _
+  echo ""
+
+  if [ -f "${CONFIG_PATH}/LoxoneConfigSetup.exe" ]; then
+    ok "Found: ${CONFIG_PATH}/LoxoneConfigSetup.exe"
+  else
+    warn "Installer not found yet — place it before first launch:"
+    echo -e "    ${BOLD}cp ~/Downloads/LoxoneConfigSetup*.exe ${CONFIG_PATH}/LoxoneConfigSetup.exe${NC}"
+  fi
+  sep
+}
+
 # ── main ──────────────────────────────────────────────────────────────────────
 main() {
   print_welcome
@@ -585,6 +647,7 @@ main() {
   resolve_dockerfile
   setup_security
   setup_paths
+  setup_installer
   setup_port
   setup_keyboard
   write_env
