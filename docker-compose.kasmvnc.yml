@@ -28,4 +28,5 @@ services:
       - WINEPREFIX=/config/wine
       - WINEARCH=win64
       - WINE_NEW_WOW64=1
+      - WINELOADER=/usr/lib/wine/wine64
       - KEEP_APP_RUNNING=${KEEP_APP_RUNNING:-1}

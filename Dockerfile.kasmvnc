@@ -54,8 +54,10 @@ RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VE
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       wine64 \
- && ln -sf /usr/lib/wine/wine64 /usr/local/bin/wine \
+ && ln -sf /usr/lib/wine/wine64 /usr/bin/wine64 \
+ && ln -sf /usr/lib/wine/wine64 /usr/bin/wine \
  && ln -sf /usr/lib/wine/wine64 /usr/local/bin/wine64 \
+ && ln -sf /usr/lib/wine/wine64 /usr/local/bin/wine \
  && wget -q -O /usr/bin/winetricks \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \
