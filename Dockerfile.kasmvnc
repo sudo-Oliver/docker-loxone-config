@@ -55,19 +55,19 @@ RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VE
 # WINE_NEW_WOW64=1 lets wine64 (x86_64 ELF) run 32-bit Windows apps WITHOUT
 # spawning any i386 ELF process — safe under Rosetta which only covers x86_64.
 #
-# BUT wine64 still needs the 32-bit PE DLLs (i386-windows/*.dll) from wine32
-# to populate C:\Windows\SysWOW64. These are PE files (Windows format), not
-# native Linux ELFs, so installing wine32:i386 on amd64 is safe — dpkg just
-# extracts the files, no i386 ELF ever runs.
+# Use WineHQ stable (much newer than Debian's wine-8.0) to avoid known
+# WOW64 bugs (e.g. wcslen null-ptr crash in vc_redist.x86.exe on Wine 8.0).
+# --install-recommends required — WineHQ uses Recommends for essential runtime deps.
 RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-      wine64 \
-      wine32:i386 \
- && ln -sf /usr/lib/wine/wine64 /usr/bin/wine64 \
- && ln -sf /usr/lib/wine/wine64 /usr/bin/wine \
- && ln -sf /usr/lib/wine/wine64 /usr/local/bin/wine64 \
- && ln -sf /usr/lib/wine/wine64 /usr/local/bin/wine \
+      wget ca-certificates \
+ && mkdir -p /etc/apt/keyrings \
+ && wget -qO /etc/apt/keyrings/winehq.key https://dl.winehq.org/wine-builds/winehq.key \
+ && echo "deb [arch=amd64,i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
+    > /etc/apt/sources.list.d/winehq.list \
+ && apt-get update \
+ && apt-get install -y --install-recommends winehq-stable \
  && wget -q -O /usr/bin/winetricks \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \
