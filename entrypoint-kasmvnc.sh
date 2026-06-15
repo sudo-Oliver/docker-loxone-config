@@ -16,15 +16,16 @@ printf '%s\n%s\n\n' "$VNC_PW" "$VNC_PW" | vncpasswd -u "$VNC_USER" -w -r
 chmod 600 ~/.vnc/passwd
 
 # ── KasmVNC xstartup ─────────────────────────────────────────────────────────
-# KasmVNC requires a real window manager — 'none' is not a supported -select-de value.
-# openbox handles window chrome (title bars, move/resize). Our app loop below runs
-# startapp.sh on the same display independently of xstartup.
+# -select-de manual tells KasmVNC to use ~/.vnc/xstartup without asking interactively.
+# openbox handles window chrome; our app loop below starts the app on the same display.
+# .de-was-selected suppresses the DE-selection prompt on subsequent container restarts.
 cat > ~/.vnc/xstartup << 'XSTARTUP'
 #!/bin/bash
 openbox &
 wait
 XSTARTUP
 chmod +x ~/.vnc/xstartup
+touch ~/.vnc/.de-was-selected
 
 # ── KasmVNC config ────────────────────────────────────────────────────────────
 RES_W="${VNC_RESOLUTION%%x*}"
@@ -54,7 +55,8 @@ EOF
 # Security type + websocket port are configured via ~/.vnc/kasmvnc.yaml above
 vncserver "$DISPLAY_NUM" \
   -geometry "$VNC_RESOLUTION" \
-  -depth 24
+  -depth 24 \
+  -select-de manual
 
 export DISPLAY="$DISPLAY_NUM"
 
