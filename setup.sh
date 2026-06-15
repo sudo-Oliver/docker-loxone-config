@@ -391,6 +391,9 @@ case "\${1:-help}" in
     docker compose up -d
     echo ""
     echo "  Open in browser: \${ACCESS_URL}"
+    if [ "${BACKEND}" = "kasmvnc" ]; then
+      echo "  Login — username: kasm_user  password: ${VNC_PASSWORD:-changeme}"
+    fi
     echo "  (First launch takes 10-15 min to install Wine + Loxone Config)"
     ;;
   stop)
@@ -547,6 +550,16 @@ show_summary() {
         echo ""
         echo -e "  ${BOLD}Open in your browser: http://localhost:${HTTP_PORT}${NC}"
         echo ""
+        if [ "$BACKEND" = "kasmvnc" ]; then
+          echo -e "  ${BOLD}Login credentials:${NC}"
+          echo -e "    Username: ${BOLD}kasm_user${NC}"
+          if [ -n "$VNC_PASSWORD" ]; then
+            echo -e "    Password: ${BOLD}(the password you set above)${NC}"
+          else
+            echo -e "    Password: ${BOLD}changeme${NC}  ${DIM}← set one later with ./setup.sh${NC}"
+          fi
+          echo ""
+        fi
         echo -e "  ${DIM}On first launch, an installation window appears in your browser"
         echo -e "  and installs Wine + Loxone Config (one-time, ~10-15 min)."
         echo -e "  You can close and reopen the browser tab while this runs.${NC}"
