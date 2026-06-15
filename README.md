@@ -17,21 +17,65 @@ This container is based on the fantastic [jlesage/baseimage-gui](https://hub.doc
 ## Quick Start
 
 ```shell
-# 1. Clone and enter the repo
-git clone https://github.com/lian/docker-loxone-config
+# 1. Clone
+git clone https://github.com/sudo-Oliver/docker-loxone-config
 cd docker-loxone-config
 
-# 2. Run setup (auto-detects your platform, configures security)
+# 2. Run setup (auto-detects platform, asks backend choice, configures security)
 chmod +x setup.sh && ./setup.sh
 
-# 3. Build and start (first run ~5-10 min, subsequent starts are fast)
+# 3. Build and start (first run ~5-10 min)
 docker compose up -d --build
 
 # 4. Open in browser
-open http://localhost:5800
+# KasmVNC (recommended): http://localhost:6901
+# Classic noVNC:         http://localhost:5800
 ```
 
-First launch installs Wine + Loxone Config inside the container (~10-15 min in an xterm window). Subsequent launches skip this step.
+First launch installs Wine + Loxone Config inside the container (~10-15 min). Subsequent launches skip this step.
+
+---
+
+## Display Backend: KasmVNC vs Classic noVNC
+
+`setup.sh` asks which backend you want. KasmVNC is the recommended choice.
+
+| Feature | KasmVNC (recommended) | Classic noVNC (legacy) |
+|---------|----------------------|------------------------|
+| Streaming | WebP/JPEG adaptive — smooth, low bandwidth | Raw VNC framebuffer — laggy on updates |
+| Clipboard | Full bidirectional | Limited, unreliable |
+| Resolution | Dynamic — resizes to browser window | Static, must be set before start |
+| Password | Any length | Max 8 chars (RFC 6143 limit) |
+| File transfer | Upload/download in browser UI | Not available |
+| Port | 6901 | 5800 |
+| Maturity | Modern, container-first design | Stable, widely used |
+
+**KasmVNC manual setup** (without setup.sh):
+
+```shell
+# .env
+COMPOSE_FILE=docker-compose.yml:docker-compose.kasmvnc.yml
+PLATFORM=linux/amd64
+DOCKERFILE=Dockerfile.kasmvnc
+VNC_PASSWORD=yourpassword
+VNC_RESOLUTION=1920x1080
+
+docker compose up -d --build
+# open http://localhost:6901
+```
+
+**Classic noVNC manual setup**:
+
+```shell
+# .env
+COMPOSE_FILE=docker-compose.yml
+PLATFORM=linux/amd64
+DOCKERFILE=Dockerfile.amd64
+VNC_PASSWORD=yourpass   # max 8 chars
+
+docker compose up -d --build
+# open http://localhost:5800
+```
 
 ---
 
@@ -91,13 +135,19 @@ docker compose up -d --build
 
 ## Platform Matrix
 
-| Host | Platform | Dockerfile | Speed |
-|------|----------|------------|-------|
-| Apple Silicon macOS + Rosetta 2 | linux/amd64 | Dockerfile.amd64 | Fast (Rosetta 2) — **primary** |
-| Apple Silicon macOS (no Rosetta) | linux/arm64 | Dockerfile.arm64-qemu | ~3-5x slower than Rosetta — **fallback** |
-| Intel macOS / Linux amd64 | linux/amd64 | Dockerfile.amd64 | Native |
-| Linux ARM64 (RPi 64-bit, ARM server) | linux/arm64 | Dockerfile.arm64-qemu | QEMU-user (adequate for GUI) |
-| Legacy 32-bit x86 | linux/386 | Dockerfile | Native |
+| Host | Backend | Dockerfile | Platform | Speed |
+|------|---------|------------|----------|-------|
+| Apple Silicon + Rosetta 2 | KasmVNC | Dockerfile.kasmvnc | linux/amd64 | Fast (Rosetta 2) ★ |
+| Apple Silicon + Rosetta 2 | Classic | Dockerfile.amd64 | linux/amd64 | Fast (Rosetta 2) |
+| Apple Silicon (no Rosetta) | KasmVNC | Dockerfile.arm64-kasmvnc | linux/arm64 | KasmVNC native / Wine QEMU |
+| Apple Silicon (no Rosetta) | Classic | Dockerfile.arm64-qemu | linux/arm64 | QEMU-user fallback |
+| Intel macOS / Linux amd64 | KasmVNC | Dockerfile.kasmvnc | linux/amd64 | Native ★ |
+| Intel macOS / Linux amd64 | Classic | Dockerfile.amd64 | linux/amd64 | Native |
+| Linux ARM64 (RPi, ARM server) | KasmVNC | Dockerfile.arm64-kasmvnc | linux/arm64 | KasmVNC native / Wine QEMU |
+| Linux ARM64 (RPi, ARM server) | Classic | Dockerfile.arm64-qemu | linux/arm64 | QEMU-user |
+| Legacy 32-bit x86 | Classic only | Dockerfile | linux/386 | Native |
+
+★ = recommended combination
 
 ---
 

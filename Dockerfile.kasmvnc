@@ -1,0 +1,64 @@
+# KasmVNC variant (linux/amd64) — replaces jlesage's Xvnc+noVNC stack
+# Improvements: WebP/JPEG adaptive streaming, full clipboard, dynamic resolution,
+# file upload/download, proper password length, no Xvfb+noVNC chain
+# Use with: docker-compose.kasmvnc.yml override (port 6901)
+FROM --platform=linux/amd64 debian:12-slim
+
+ARG KASMVNC_VER=1.3.1
+ARG XLANG=de
+
+# KasmVNC runtime dependencies + tools
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      wget \
+      ca-certificates \
+      xterm \
+      x11-xkb-utils \
+      xkb-data \
+      libglu1-mesa \
+      libxcomposite1 \
+      libxcursor1 \
+      libxi6 \
+      libxtst6 \
+      libssl3 \
+      libnss3 \
+      libnspr4 \
+      libpulse0 \
+      libasound2 \
+      libxrandr2 \
+      libxfixes3 \
+      libxdamage1 \
+      cabextract \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install KasmVNC — provides its own Xvnc server + modern web UI on port 6901
+RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VER}/kasmvncserver_bookworm_${KASMVNC_VER}_amd64.deb" \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends "./kasmvncserver_bookworm_${KASMVNC_VER}_amd64.deb" \
+ && rm -f "kasmvncserver_bookworm_${KASMVNC_VER}_amd64.deb" \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Wine32 via i386 multiarch (same as Dockerfile.amd64)
+RUN dpkg --add-architecture i386 \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      wine \
+      wine32 \
+      wine64 \
+ && wget -q -O /usr/bin/winetricks \
+      https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
+ && chmod +x /usr/bin/winetricks \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/*
+
+COPY init-install.sh /init-install.sh
+COPY startapp.sh /startapp.sh
+COPY entrypoint-kasmvnc.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh /startapp.sh /init-install.sh
+
+# KasmVNC web UI on 6901, VNC protocol on 5901
+EXPOSE 6901 5901
+
+CMD ["/entrypoint.sh"]

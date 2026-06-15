@@ -1,0 +1,29 @@
+# KasmVNC override — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.kasmvnc.yml up -d --build
+#
+# Or set in .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.kasmvnc.yml
+# Then run: docker compose up -d --build
+#
+# Improvements over classic noVNC:
+#   - WebP/JPEG adaptive streaming (smoother, less bandwidth)
+#   - Full bidirectional clipboard
+#   - Dynamic resolution (adapts to browser window)
+#   - File upload/download in browser UI
+#   - No 8-char password limit
+#   - Access: http://localhost:6901
+
+services:
+  loxone-config:
+    build:
+      dockerfile: ${DOCKERFILE:-Dockerfile.kasmvnc}
+    ports:
+      - "${HTTP_PORT:-6901}:6901"
+      - "${VNC_PORT:-5901}:5901"
+    environment:
+      - VNC_PW=${VNC_PASSWORD:-changeme}
+      - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
+      - XLANG=${XLANG:-de}
+      - WINEPREFIX=/config/wine
+      - WINEARCH=win32
+      - KEEP_APP_RUNNING=${KEEP_APP_RUNNING:-1}
