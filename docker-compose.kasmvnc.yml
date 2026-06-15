@@ -27,4 +27,5 @@ services:
       - XLANG=${XLANG:-de}
       - WINEPREFIX=/config/wine
       - WINEARCH=win64
+      - WINE_NEW_WOW64=1
       - KEEP_APP_RUNNING=${KEEP_APP_RUNNING:-1}
