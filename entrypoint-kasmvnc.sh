@@ -42,8 +42,6 @@ network:
   websocket_port: 6901
   ssl:
     require_ssl: false
-keyboard:
-  remap_keys: {}
 logging:
   log_writer_name: all
   log_dest: logfile
