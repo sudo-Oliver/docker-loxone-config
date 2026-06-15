@@ -20,7 +20,7 @@ fi
 
 export WINEDEBUG=err
 export WINE_NEW_WOW64=1
-export WINE=/usr/local/bin/wine
+export WINE=/usr/bin/wine
 
 echo "init-install: wine=$(which wine) version=$(wine --version 2>&1)"
 echo "init-install: WINEARCH=$WINEARCH WINEPREFIX=$WINEPREFIX"
