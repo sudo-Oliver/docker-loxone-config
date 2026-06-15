@@ -22,6 +22,7 @@ services:
       - "${VNC_PORT:-5901}:5901"
     environment:
       - VNC_PW=${VNC_PASSWORD:-changeme}
+      - VNC_USER=${VNC_USER:-kasm_user}
       - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
       - XLANG=${XLANG:-de}
       - WINEPREFIX=/config/wine

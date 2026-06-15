@@ -2,14 +2,17 @@
 set -e
 
 VNC_PW="${VNC_PW:-changeme}"
+VNC_USER="${VNC_USER:-kasm_user}"
 VNC_RESOLUTION="${VNC_RESOLUTION:-1920x1080}"
 XLANG="${XLANG:-de}"
 KEEP_APP_RUNNING="${KEEP_APP_RUNNING:-1}"
 DISPLAY_NUM=":1"
 
 # ── VNC auth ──────────────────────────────────────────────────────────────────
+# KasmVNC uses username-based auth — vncpasswd -u <user> -w -r, password via stdin
+# Format: "password\npassword\n" (set password; empty 3rd line = no view-only password)
 mkdir -p ~/.vnc
-echo "$VNC_PW" | vncpasswd -f > ~/.vnc/passwd
+printf '%s\n%s\n\n' "$VNC_PW" "$VNC_PW" | vncpasswd -u "$VNC_USER" -w -r
 chmod 600 ~/.vnc/passwd
 
 # ── KasmVNC config ────────────────────────────────────────────────────────────

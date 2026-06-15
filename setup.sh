@@ -481,8 +481,14 @@ show_summary() {
 
   if [ -n "$VNC_PASSWORD" ]; then
     ok "Password:      set ✓"
+    if [ "$BACKEND" = "kasmvnc" ]; then
+      ok "Login:         username ${BOLD}kasm_user${NC}  + your password"
+    fi
   else
     warn "Password:      not set (anyone on your network can access)"
+    if [ "$BACKEND" = "kasmvnc" ]; then
+      info "Default login: username ${BOLD}kasm_user${NC}  password ${BOLD}changeme${NC}"
+    fi
   fi
 
   echo ""
@@ -515,20 +521,43 @@ show_summary() {
       echo ""
       docker compose up -d --build
       echo ""
-      ok "Loxone Config is starting!"
+      printf "  Waiting for Loxone Config web UI"
+      READY=false
+      for i in $(seq 1 60); do
+        if nc -z localhost "${HTTP_PORT}" 2>/dev/null; then
+          READY=true
+          break
+        fi
+        printf "."
+        sleep 1
+      done
       echo ""
-      echo -e "  ${BOLD}Open in your browser: http://localhost:${HTTP_PORT}${NC}"
       echo ""
-      echo -e "  ${DIM}On first launch, an installation window appears in your browser"
-      echo -e "  and installs Wine + Loxone Config (one-time, ~10-15 min)."
-      echo -e "  You can close and reopen the browser tab while this runs.${NC}"
-      echo ""
-      if command -v open &>/dev/null; then
-        read -r -p "  Open browser now? [Y/n]: " open_ans
-        case "${open_ans:-Y}" in
-          [Nn]*) ;;
-          *) open "http://localhost:${HTTP_PORT}" ;;
-        esac
+      if [ "$READY" = "false" ]; then
+        err "Web UI did not come up within 60 seconds."
+        echo ""
+        echo "  Check what went wrong:"
+        echo -e "    ${BOLD}./loxone.sh logs${NC}"
+        echo ""
+        echo "  Then try restarting:"
+        echo -e "    ${BOLD}./loxone.sh restart${NC}"
+        echo ""
+      else
+        ok "Loxone Config is ready!"
+        echo ""
+        echo -e "  ${BOLD}Open in your browser: http://localhost:${HTTP_PORT}${NC}"
+        echo ""
+        echo -e "  ${DIM}On first launch, an installation window appears in your browser"
+        echo -e "  and installs Wine + Loxone Config (one-time, ~10-15 min)."
+        echo -e "  You can close and reopen the browser tab while this runs.${NC}"
+        echo ""
+        if command -v open &>/dev/null; then
+          read -r -p "  Open browser now? [Y/n]: " open_ans
+          case "${open_ans:-Y}" in
+            [Nn]*) ;;
+            *) open "http://localhost:${HTTP_PORT}" ;;
+          esac
+        fi
       fi
       ;;
   esac
