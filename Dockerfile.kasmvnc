@@ -47,13 +47,20 @@ RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VE
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# wine64 only — Rosetta translates x86_64 binaries on Apple Silicon.
-# wine32 is i386; Rosetta does NOT cover i386, so it falls to QEMU-user which
-# crashes on Apple Silicon's 16KB host pages. wine64 + WINEARCH=win64 avoids
-# any i386 process: 32-bit Windows apps run through Wine's internal WoW64 layer.
-RUN apt-get update \
+# Wine setup for Apple Silicon + WINE_NEW_WOW64=1 (experimental wow64 mode).
+#
+# WINE_NEW_WOW64=1 lets wine64 (x86_64 ELF) run 32-bit Windows apps WITHOUT
+# spawning any i386 ELF process — safe under Rosetta which only covers x86_64.
+#
+# BUT wine64 still needs the 32-bit PE DLLs (i386-windows/*.dll) from wine32
+# to populate C:\Windows\SysWOW64. These are PE files (Windows format), not
+# native Linux ELFs, so installing wine32:i386 on amd64 is safe — dpkg just
+# extracts the files, no i386 ELF ever runs.
+RUN dpkg --add-architecture i386 \
+ && apt-get update \
  && apt-get install -y --no-install-recommends \
       wine64 \
+      wine32:i386 \
  && ln -sf /usr/lib/wine/wine64 /usr/bin/wine64 \
  && ln -sf /usr/lib/wine/wine64 /usr/bin/wine \
  && ln -sf /usr/lib/wine/wine64 /usr/local/bin/wine64 \
