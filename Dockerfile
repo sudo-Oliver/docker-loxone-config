@@ -5,7 +5,7 @@ FROM --platform=linux/386 jlesage/baseimage-gui:alpine-3.18-v4.5
 
 ARG XLANG=de
 
-RUN add-pkg wine wget xterm cabextract xkeyboard-config setxkbmap
+RUN add-pkg wine wget xterm cabextract unzip xkeyboard-config setxkbmap
 RUN wget -O /usr/bin/winetricks https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks && \
   chmod +x /usr/bin/winetricks
 

@@ -1,6 +1,6 @@
 # linux/amd64 variant — runs natively on Intel/AMD; runs via Rosetta 2 on Apple Silicon (fast)
 # Debian base supports wine32 via dpkg i386 multiarch, unlike Alpine which requires linux/386
-FROM --platform=linux/amd64 jlesage/baseimage-gui:debian-12-v4.5
+FROM --platform=linux/amd64 jlesage/baseimage-gui:debian-12-v4.12.4
 
 ARG XLANG=de
 
@@ -12,6 +12,7 @@ RUN dpkg --add-architecture i386 \
       wine64 \
       wget \
       cabextract \
+      unzip \
       xterm \
       x11-xkb-utils \
       xkb-data \

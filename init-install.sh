@@ -18,16 +18,41 @@ if [ ! -f "/config/LoxoneConfigSetup.exe" ]; then
     | grep -i 'LoxoneConfigSetup_' \
     | head -1) || true
 
+  # Fix relative URLs from the Loxone website
+  case "$DOWNLOAD_URL" in
+    http://*|https://*) ;;
+    /*) DOWNLOAD_URL="https://www.loxone.com${DOWNLOAD_URL}" ;;
+    ?*) DOWNLOAD_URL="https://www.loxone.com/${DOWNLOAD_URL}" ;;
+  esac
+
   if [ -n "$DOWNLOAD_URL" ]; then
-    wget -O i.zip "$DOWNLOAD_URL" && unzip i.zip && rm -f i.zip || true
+    echo "Downloading: $DOWNLOAD_URL"
+    case "$DOWNLOAD_URL" in
+      *.zip|*.ZIP)
+        # Installer packaged as zip — extract the .exe
+        wget -O /config/_setup.zip "$DOWNLOAD_URL" && \
+          unzip -o /config/_setup.zip -d /config '*.exe' && \
+          find /config -maxdepth 1 -name 'LoxoneConfig*.exe' | \
+            head -1 | xargs -I{} mv {} /config/LoxoneConfigSetup.exe 2>/dev/null || true
+        rm -f /config/_setup.zip
+        ;;
+      *)
+        # Direct .exe download
+        wget -O /config/LoxoneConfigSetup.exe "$DOWNLOAD_URL" || \
+          rm -f /config/LoxoneConfigSetup.exe
+        ;;
+    esac
   fi
 
   if [ ! -f "/config/LoxoneConfigSetup.exe" ]; then
     echo ""
-    echo "ERROR: auto-download failed or LoxoneConfigSetup.exe not found."
+    echo "ERROR: auto-download failed."
     echo ""
-    echo "Manual fix: download LoxoneConfigSetup_*.exe from https://www.loxone.com/enen/support/downloads/"
-    echo "and place it at: ./config/LoxoneConfigSetup.exe"
+    echo "Manual fix:"
+    echo "  1. Download LoxoneConfigSetup_*.exe from:"
+    echo "     https://www.loxone.com/enen/support/downloads/"
+    echo "  2. Place it at:  ./config/LoxoneConfigSetup.exe"
+    echo "  3. Restart the container: ./loxone.sh restart"
     echo ""
     exit 1
   fi

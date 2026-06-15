@@ -37,12 +37,11 @@ EOF
 
 # ── Start KasmVNC ─────────────────────────────────────────────────────────────
 # Daemonizes Xvnc + starts built-in web server on port 6901
+# Security type + websocket port are configured via ~/.vnc/kasmvnc.yaml above
 vncserver "$DISPLAY_NUM" \
   -geometry "$VNC_RESOLUTION" \
   -depth 24 \
-  -select-de none \
-  -SecurityTypes VncAuth \
-  -interface 0.0.0.0
+  -select-de none
 
 export DISPLAY="$DISPLAY_NUM"
 

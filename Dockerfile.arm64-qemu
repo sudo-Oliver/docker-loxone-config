@@ -10,7 +10,7 @@
 #   - Host binfmt_misc entry invokes qemu-i386-static automatically on any i386 binary exec
 #
 # Performance vs Rosetta 2: ~3-5x slower, but sufficient for GUI usage (no heavy compute)
-FROM --platform=linux/arm64 jlesage/baseimage-gui:debian-12-v4.5
+FROM --platform=linux/arm64 jlesage/baseimage-gui:debian-12-v4.12.4
 
 ARG XLANG=de
 
@@ -29,6 +29,7 @@ RUN dpkg --add-architecture i386 \
       wine32 \
       wget \
       cabextract \
+      unzip \
       xterm \
       x11-xkb-utils \
       xkb-data \
