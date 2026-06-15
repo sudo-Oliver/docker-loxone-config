@@ -19,7 +19,6 @@ if [ ! -f "/config/LoxoneConfigSetup.exe" ]; then
 fi
 
 export WINEDEBUG=err
-export WINE_NEW_WOW64=1
 export WINE=/usr/bin/wine
 
 echo "init-install: wine=$(which wine) version=$(wine --version 2>&1)"
