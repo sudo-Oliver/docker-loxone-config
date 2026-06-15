@@ -69,7 +69,7 @@ detect_platform() {
   case "$arch" in
     arm64|aarch64)
       if [ "$os" = "Darwin" ]; then
-        if [ -f /usr/libexec/rosetta ]; then
+        if arch -x86_64 /usr/bin/true 2>/dev/null; then
           PLATFORM="linux/amd64"
           PLATFORM_CLASS="amd64"
           ok "Apple Silicon Mac (M-chip) — Rosetta 2 available"
