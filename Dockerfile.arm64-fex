@@ -1,0 +1,155 @@
+# ARM64 + FEX-Emu variant — native ARM64 container, x86-64 translation via FEX JIT
+#
+# WHY FEX instead of Rosetta 2:
+#   LoxoneConfig.exe embeds Qt6WebEngine (Chromium-based). Chromium installs a signal
+#   handler that checks AVX xsave state in rt_sigreturn frames. Rosetta 2 delegates
+#   AVX state management to the hardware kernel — which incorrectly populates xfeatures
+#   in signal frames under Docker. Result: assertion crash in ThreadContextSignals.cpp:414.
+#   FEX-Emu manages the entire x86-64 CPU state in software, including xsave headers,
+#   so the assertion never fires.
+#
+# Architecture:
+#   Apple Silicon Mac (ARM64)
+#   └── Docker Desktop (Linux ARM64 VM, native)
+#       └── Container: linux/arm64 (native — no Rosetta, no QEMU for the container)
+#           ├── FEX-Emu 2604+ (JIT x86-64 → ARM64; handles AVX xsave correctly)
+#           │   └── WineHQ stable x86-64 (from bundled x86-64 rootfs; 9.x+ has bcryptprimitives.dll)
+#           │       └── LoxoneConfig.exe (AMD64 + Qt6WebEngine/Chromium)
+#           ├── KasmVNC (ARM64 native — no translation overhead)
+#           └── X11, openbox (ARM64 native)
+#
+# Multi-stage build:
+#   Stage 1 (linux/amd64): Debian 12 x86-64 userspace + WineHQ stable (includes bcryptprimitives.dll)
+#   Stage 2 (linux/arm64): install FEX-Emu + KasmVNC, copy x86-64 rootfs from Stage 1
+#
+# FEX child-process propagation: FEX intercepts exec() syscalls — child processes
+# spawned by wine (wineserver, wine64-preloader, etc.) automatically run under FEX.
+# No binfmt_misc registration required.
+
+# ── Stage 1: x86-64 wine environment ─────────────────────────────────────────
+FROM --platform=linux/amd64 debian:12-slim AS wine-x86
+
+# WineHQ stable (9.x+) required: Wine 8.0 (Debian 12) missing bcryptprimitives.dll,
+# which Qt6WebEngineCore/Chromium requires during DLL_PROCESS_ATTACH.
+# WineHQ installs to /opt/wine-stable/.
+RUN dpkg --add-architecture i386 \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      wget ca-certificates gnupg2 \
+ && mkdir -p /etc/apt/keyrings \
+ && wget -qO /etc/apt/keyrings/winehq-archive.key \
+      https://dl.winehq.org/wine-builds/winehq.key \
+ && printf 'deb [arch=amd64,i386 signed-by=/etc/apt/keyrings/winehq-archive.key] https://dl.winehq.org/wine-builds/debian/ bookworm main\n' \
+      > /etc/apt/sources.list.d/winehq.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      winehq-stable \
+ && rm -rf /var/lib/apt/lists/* /tmp/*
+
+# ── Stage 2: ARM64 native + FEX-Emu ──────────────────────────────────────────
+FROM --platform=linux/arm64 ubuntu:22.04
+
+ARG KASMVNC_VER=1.4.0
+ARG XLANG=de
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ARM64-native runtime deps and extraction tools
+# cabextract + msitools: extract vc_redist DLLs natively (no wine needed for extraction)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      wget \
+      ca-certificates \
+      software-properties-common \
+      gpg \
+      gpg-agent \
+      xterm \
+      x11-utils \
+      xauth \
+      x11-xkb-utils \
+      xkb-data \
+      unzip \
+      openbox \
+      cabextract \
+      msitools \
+      p7zip-full \
+      libglu1-mesa \
+      libxcomposite1 \
+      libxcursor1 \
+      libxi6 \
+      libxtst6 \
+      libssl3 \
+      libnss3 \
+      libnspr4 \
+      libpulse0 \
+      libasound2 \
+      libxrandr2 \
+      libxfixes3 \
+      libxdamage1 \
+ && rm -rf /var/lib/apt/lists/*
+
+# FEX-Emu from PPA — JIT compiler translates x86-64 → ARM64 at runtime
+# armv8.2 package: Apple Silicon M1/M2/M3 (ARMv8.5+), other ARMv8.2+ hosts
+# armv8.0 fallback: Raspberry Pi 4, older ARM servers
+RUN add-apt-repository ppa:fex-emu/fex -y \
+ && apt-get update \
+ && (apt-get install -y --no-install-recommends fex-emu-armv8.2 \
+     || apt-get install -y --no-install-recommends fex-emu-armv8.0) \
+ && rm -rf /var/lib/apt/lists/*
+
+# KasmVNC for ARM64 (jammy package) — web VNC on port 6901, runs natively (no FEX)
+RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VER}/kasmvncserver_jammy_${KASMVNC_VER}_arm64.deb" \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      "./kasmvncserver_jammy_${KASMVNC_VER}_arm64.deb" \
+ && rm -f "kasmvncserver_jammy_${KASMVNC_VER}_arm64.deb" \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* \
+ && printf '#!/bin/sh\nmkdir -p "$HOME/.vnc"\nprintf "#!/bin/sh\\nopenbox \&\\n" > "$HOME/.vnc/xstartup"\nchmod +x "$HOME/.vnc/xstartup"\nexit 0\n' \
+    > /usr/lib/kasmvncserver/select-de.sh \
+ && chmod +x /usr/lib/kasmvncserver/select-de.sh
+
+# Copy x86-64 Debian+wine rootfs from Stage 1 into /opt/fex-rootfs.
+# FEX uses this as the x86-64 userspace: libraries, wine binaries, dynamic linker.
+# FEX overlay semantics: rootfs files take priority; host files used as fallback.
+# /config volume (wine prefix, Loxone data) is accessible via host fallback.
+COPY --from=wine-x86 /usr /opt/fex-rootfs/usr
+COPY --from=wine-x86 /lib /opt/fex-rootfs/lib
+COPY --from=wine-x86 /lib64 /opt/fex-rootfs/lib64
+COPY --from=wine-x86 /bin /opt/fex-rootfs/bin
+COPY --from=wine-x86 /sbin /opt/fex-rootfs/sbin
+COPY --from=wine-x86 /etc /opt/fex-rootfs/etc
+# WineHQ stable installs to /opt/wine-stable/ — copy so FEX can find wine64 ELF
+COPY --from=wine-x86 /opt /opt/fex-rootfs/opt
+# Remove build-time DNS/host config — let FEX fall back to the container's live files
+RUN rm -f /opt/fex-rootfs/etc/resolv.conf \
+          /opt/fex-rootfs/etc/hosts \
+          /opt/fex-rootfs/etc/hostname
+
+# Pre-configure FEX for root. entrypoint-kasmvnc.sh re-creates at runtime HOME=/config.
+RUN mkdir -p /root/.fex-emu/RootFS \
+ && ln -sfn /opt/fex-rootfs /root/.fex-emu/RootFS/wine \
+ && printf '{"Config":{"RootFS":"wine"}}\n' > /root/.fex-emu/Config.json
+
+# Wine wrappers — explicit FEXInterpreter invocation (no binfmt_misc needed for entry point).
+# FEX propagates to child processes (wineserver, wine64-preloader) via exec() interception.
+# WineHQ stable uses a single "wine" binary (wine64 was merged in Wine 6.x).
+RUN printf '#!/bin/sh\nexec FEXInterpreter /opt/fex-rootfs/opt/wine-stable/bin/wine "$@"\n' \
+    > /usr/local/bin/wine \
+ && printf '#!/bin/sh\nexec FEXInterpreter /opt/fex-rootfs/opt/wine-stable/bin/wine "$@"\n' \
+    > /usr/local/bin/wine64 \
+ && chmod +x /usr/local/bin/wine /usr/local/bin/wine64
+
+# winetricks is a bash script — runs natively on ARM64, calls wine via wrapper above
+RUN wget -q -O /usr/bin/winetricks \
+    https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
+ && chmod +x /usr/bin/winetricks
+
+COPY init-install.sh /init-install.sh
+COPY startapp.sh /startapp.sh
+COPY entrypoint-kasmvnc.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh /startapp.sh /init-install.sh
+
+EXPOSE 6901 5901
+
+CMD ["/entrypoint.sh"]

@@ -52,13 +52,16 @@ RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VE
 
 # Debian wine-8.0: wine-11.0 (WineHQ) crashes on Apple Silicon Docker with
 # anon_mmap_fixed assertion even under Rosetta. wine-8.0 runs the Loxone
-# installer correctly. p7zip-full needed to unpack vc_redist.x86.exe bundle.
+# installer correctly. p7zip-full + msitools + cabextract: static DLL extraction
+# from vc_redist.x86.exe Burn bundle (tail CAB → MSI → msiextract → syswow64).
 RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
+      wine \
       wine64 \
       wine32:i386 \
       p7zip-full \
+      msitools \
  && wget -q -O /usr/bin/winetricks \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \

@@ -64,12 +64,27 @@ echo "KasmVNC ready on display $DISPLAY — web UI at http://localhost:6901"
 openbox &
 setxkbmap "$XLANG" 2>/dev/null || true
 
+# ── FEX-Emu rootfs config (ARM64 containers only) ────────────────────────────
+# HOME=/config is set at runtime by KasmVNC — build-time /root/.fex-emu is wrong dir.
+# FEX needs: $HOME/.fex-emu/Config.json with {"Config":{"RootFS":"wine"}}
+#            $HOME/.fex-emu/RootFS/wine  →  /opt/fex-rootfs (symlink)
+if [ -d /opt/fex-rootfs ] && command -v FEXInterpreter >/dev/null 2>&1; then
+  mkdir -p "$HOME/.fex-emu/RootFS"
+  ln -sfn /opt/fex-rootfs "$HOME/.fex-emu/RootFS/wine"
+  printf '{"Config":{"RootFS":"wine"}}\n' > "$HOME/.fex-emu/Config.json"
+  echo "FEX: configured rootfs → /opt/fex-rootfs"
+fi
+
 # ── Application loop ──────────────────────────────────────────────────────────
 # startapp.sh handles first-run installation and Wine startup.
 # 'exec wine' inside startapp.sh replaces the subshell — when wine exits,
 # the loop iteration ends and we either restart (KEEP_APP_RUNNING=1) or exit.
 while true; do
   /startapp.sh || true
+  if [ -f /tmp/install_failed ]; then
+    echo "Installation failed — container idle. Fix errors and run: docker compose restart"
+    sleep infinity
+  fi
   if [ "$KEEP_APP_RUNNING" != "1" ]; then
     break
   fi

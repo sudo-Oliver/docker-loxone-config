@@ -34,15 +34,14 @@ check_prerequisites() {
   echo ""
 
   if [ "$(uname -m)" = "arm64" ] && [ "$(uname -s)" = "Darwin" ]; then
-    echo -e "  ${BOLD}${YELLOW}Apple Silicon Mac (M-chip) detected${NC}"
+    echo -e "  ${BOLD}${CYAN}Apple Silicon Mac (M-chip) detected${NC}"
     echo ""
-    echo "  Rosetta 2 is required for Wine to run Windows apps in Docker."
-    echo "  If you haven't installed it yet, open a terminal and run:"
+    echo "  This setup uses FEX-Emu for x86-64 translation — no Rosetta 2 needed."
+    echo "  FEX-Emu is a JIT translator that correctly handles all CPU state including"
+    echo "  AVX registers, which Rosetta 2 does not fully support for this application."
     echo ""
-    echo -e "    ${BOLD}softwareupdate --install-rosetta --agree-to-license${NC}"
-    echo ""
-    echo "  Then enable it in Docker Desktop:"
-    echo -e "  ${DIM}Settings → General → \"Use Rosetta for x86_64/amd64 emulation\"${NC}"
+    echo -e "  ${DIM}(Rosetta 2 causes a crash in LoxoneConfig's embedded Chromium engine.${NC}"
+    echo -e "  ${DIM} The Rosetta setting in Docker Desktop → General has no effect here.)${NC}"
     echo ""
   fi
 
@@ -98,28 +97,13 @@ detect_platform() {
 
   case "$arch" in
     arm64|aarch64)
+      PLATFORM="linux/arm64"
+      PLATFORM_CLASS="arm64"
       if [ "$os" = "Darwin" ]; then
-        if arch -x86_64 /usr/bin/true 2>/dev/null; then
-          PLATFORM="linux/amd64"
-          PLATFORM_CLASS="amd64"
-          ok "Apple Silicon Mac (M-chip) — Rosetta 2 available"
-          info "For best performance, enable Rosetta in Docker Desktop:"
-          echo -e "       ${DIM}Docker Desktop → Settings → General → \"Use Rosetta for x86_64/amd64 emulation\"${NC}"
-          info "Without it, Docker uses a slower fallback — everything still works."
-        else
-          PLATFORM="linux/arm64"
-          PLATFORM_CLASS="arm64"
-          QEMU_BINFMT_NEEDED=true
-          ok "Apple Silicon Mac (M-chip)"
-          warn "Rosetta 2 not found — using native ARM mode instead (still works great)."
-          info "You can install Rosetta 2 later: softwareupdate --install-rosetta"
-        fi
+        ok "Apple Silicon Mac (M-chip) — using FEX-Emu (native ARM64 + x86-64 JIT)"
+        info "FEX-Emu handles AVX xsave correctly; Rosetta 2 does not (crashes LoxoneConfig)."
       else
-        PLATFORM="linux/arm64"
-        PLATFORM_CLASS="arm64"
-        QEMU_BINFMT_NEEDED=true
-        ok "Linux on ARM processor (Raspberry Pi / ARM server)"
-        info "Using native ARM mode."
+        ok "Linux on ARM processor (Raspberry Pi / ARM server) — using FEX-Emu"
       fi
       ;;
     x86_64)
@@ -138,10 +122,6 @@ detect_platform() {
       warn "Unknown processor type — defaulting to standard mode."
       ;;
   esac
-
-  if [ "$QEMU_BINFMT_NEEDED" = "true" ]; then
-    _setup_qemu
-  fi
 
   sep
 }
@@ -219,10 +199,10 @@ choose_display_mode() {
 # ── resolve dockerfile + compose ──────────────────────────────────────────────
 resolve_dockerfile() {
   case "${BACKEND}:${PLATFORM_CLASS}" in
-    kasmvnc:amd64) DOCKERFILE="Dockerfile.kasmvnc";       COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
-    kasmvnc:arm64) DOCKERFILE="Dockerfile.arm64-kasmvnc"; COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
-    classic:amd64) DOCKERFILE="Dockerfile.amd64";         COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
-    classic:arm64) DOCKERFILE="Dockerfile.arm64-qemu";    COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
+    kasmvnc:amd64) DOCKERFILE="Dockerfile.kasmvnc";     COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
+    kasmvnc:arm64) DOCKERFILE="Dockerfile.arm64-fex";   COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
+    classic:amd64) DOCKERFILE="Dockerfile.amd64";       COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
+    classic:arm64) DOCKERFILE="Dockerfile.arm64-qemu";  COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
     *:386)         DOCKERFILE="Dockerfile";               COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
     *)             DOCKERFILE="Dockerfile.kasmvnc";       COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
   esac
