@@ -701,6 +701,61 @@ setup_installer() {
   sep
 }
 
+# ── shell alias ───────────────────────────────────────────────────────────────
+setup_alias() {
+  local loxone_abs
+  loxone_abs="$(cd "$(dirname "$0")" && pwd)/loxone.sh"
+
+  # detect shell config file
+  local shell_rc=""
+  case "${SHELL:-}" in
+    */zsh)  shell_rc="$HOME/.zshrc" ;;
+    */bash) shell_rc="$HOME/.bashrc" ;;
+    *)      shell_rc="$HOME/.profile" ;;
+  esac
+  # macOS bash uses .bash_profile
+  [ "$(uname -s)" = "Darwin" ] && [ "${SHELL:-}" != */zsh ] && shell_rc="$HOME/.bash_profile"
+
+  # skip if alias already set
+  if grep -q "alias loxone=" "$shell_rc" 2>/dev/null; then
+    ok "Shell alias already set: type ${BOLD}loxone start${NC} anywhere"
+    sep
+    return
+  fi
+
+  header "Shell Shortcut (Optional)"
+  echo ""
+  echo "  Add a global 'loxone' command so you can type:"
+  echo ""
+  echo -e "    ${BOLD}loxone start${NC}    ${DIM}instead of  ./loxone.sh start${NC}"
+  echo -e "    ${BOLD}loxone stop${NC}"
+  echo -e "    ${BOLD}loxone open${NC}"
+  echo -e "    ${BOLD}loxone logs${NC}"
+  echo -e "    ${BOLD}loxone report${NC}"
+  echo ""
+  echo -e "  This adds one line to ${BOLD}${shell_rc}${NC}."
+  echo -e "  ${DIM}(If you move this folder later, re-run setup.sh to update it.)${NC}"
+  echo ""
+
+  read -r -p "  Add 'loxone' shortcut? [Y/n]: " ans
+  echo ""
+  case "${ans:-Y}" in
+    [Nn]*)
+      info "Skipped. You can always use: ./loxone.sh start"
+      sep
+      return
+      ;;
+  esac
+
+  printf '\n# Loxone Config shortcut (added by setup.sh)\nalias loxone="%s"\n' "$loxone_abs" >> "$shell_rc"
+  ok "Added alias to ${shell_rc}"
+  echo ""
+  echo -e "  Activate now by running:"
+  echo -e "    ${BOLD}source ${shell_rc}${NC}"
+  echo -e "  ${DIM}Or just open a new terminal tab — it loads automatically.${NC}"
+  sep
+}
+
 # ── main ──────────────────────────────────────────────────────────────────────
 main() {
   print_welcome
@@ -716,6 +771,7 @@ main() {
   setup_keyboard
   write_env
   write_helper
+  setup_alias
   show_summary
 }
 

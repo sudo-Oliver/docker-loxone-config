@@ -31,6 +31,8 @@ chmod +x setup.sh && ./setup.sh
 
 ```shell
 ./loxone.sh start
+# or, if you added the shell shortcut during setup:
+loxone start
 ```
 
 Then open **http://localhost:6901** in your browser.
@@ -41,15 +43,15 @@ Login with:
 
 **What happens on first launch:** The Loxone Config installer wizard opens in your browser. Click through it — takes about 10 minutes. After that, Loxone Config opens automatically on every start — no wizard again.
 
-**Daily use commands:**
+**Daily use commands** (works as `./loxone.sh <cmd>` or `loxone <cmd>` with the shell shortcut):
 
 ```shell
-./loxone.sh start    # start (or resume after stop)
-./loxone.sh stop     # stop
-./loxone.sh restart  # restart — fixes most stuck states
-./loxone.sh status   # check if running
-./loxone.sh open     # open browser directly
-./loxone.sh logs     # tail live logs
+loxone start    # start (or resume after stop)
+loxone stop     # stop
+loxone restart  # restart — fixes most stuck states
+loxone open     # open browser directly
+loxone logs     # tail live logs
+loxone report   # collect system info + open GitHub Issues
 ```
 
 ---
