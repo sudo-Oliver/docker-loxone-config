@@ -93,7 +93,6 @@ detect_platform() {
 
   PLATFORM="linux/amd64"
   PLATFORM_CLASS="amd64"
-  QEMU_BINFMT_NEEDED=false
 
   case "$arch" in
     arm64|aarch64)
@@ -124,36 +123,6 @@ detect_platform() {
   esac
 
   sep
-}
-
-_setup_qemu() {
-  echo ""
-  info "One-time compatibility setup needed for your processor..."
-
-  if [ -f /proc/sys/fs/binfmt_misc/qemu-i386 ] || \
-     docker run --rm --platform linux/386 alpine echo ok &>/dev/null 2>&1; then
-    ok "Already configured"
-    return 0
-  fi
-
-  echo ""
-  echo "  Your processor needs a small compatibility layer so Wine can run"
-  echo "  Windows software. This is a one-time step (needs to repeat after reboot)."
-  echo ""
-  read -r -p "  Set this up now? [Y/n]: " ans
-  echo ""
-  case "${ans:-Y}" in
-    [Yy]*)
-      docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-      ok "Compatibility layer ready"
-      info "Tip: add this to your startup script to avoid repeating after reboot:"
-      echo -e "       ${DIM}docker run --rm --privileged multiarch/qemu-user-static --reset -p yes${NC}"
-      ;;
-    *)
-      warn "Skipped. Run this before starting Loxone Config:"
-      echo -e "     ${DIM}docker run --rm --privileged multiarch/qemu-user-static --reset -p yes${NC}"
-      ;;
-  esac
 }
 
 # ── display mode ──────────────────────────────────────────────────────────────
@@ -202,7 +171,7 @@ resolve_dockerfile() {
     kasmvnc:amd64) DOCKERFILE="Dockerfile.kasmvnc";     COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
     kasmvnc:arm64) DOCKERFILE="Dockerfile.arm64-fex";   COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
     classic:amd64) DOCKERFILE="Dockerfile.amd64";       COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
-    classic:arm64) DOCKERFILE="Dockerfile.arm64-qemu";  COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
+    classic:arm64) DOCKERFILE="Dockerfile.arm64-fex";   COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
     *:386)         DOCKERFILE="Dockerfile";               COMPOSE_FILE="docker-compose.yml:docker-compose.classic.yml" ;;
     *)             DOCKERFILE="Dockerfile.kasmvnc";       COMPOSE_FILE="docker-compose.yml:docker-compose.kasmvnc.yml" ;;
   esac
@@ -493,25 +462,36 @@ show_summary() {
   ok "Keyboard:      ${XLANG}"
 
   if [ -n "$VNC_PASSWORD" ]; then
-    ok "Password:      set ✓"
-    if [ "$BACKEND" = "kasmvnc" ]; then
-      ok "Login:         username ${BOLD}kasm_user${NC}  + your password"
-    fi
+    ok "Browser login: username ${BOLD}kasm_user${NC}  password ${BOLD}${VNC_PASSWORD}${NC}"
   else
-    warn "Password:      not set (anyone on your network can access)"
+    warn "No password set — anyone on your network can access"
     if [ "$BACKEND" = "kasmvnc" ]; then
-      info "Default login: username ${BOLD}kasm_user${NC}  password ${BOLD}changeme${NC}"
+      ok "Browser login: username ${BOLD}kasm_user${NC}  password ${BOLD}changeme${NC}"
     fi
   fi
 
   echo ""
   echo -e "  ${BOLD}Quick reference (save this):${NC}"
-  echo -e "  ${DIM}─────────────────────────────────────${NC}"
+  echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
   echo -e "  Start:    ${BOLD}./loxone.sh start${NC}"
   echo -e "  Stop:     ${BOLD}./loxone.sh stop${NC}"
   echo -e "  Restart:  ${BOLD}./loxone.sh restart${NC}    ${DIM}← if something seems stuck${NC}"
   echo -e "  Status:   ${BOLD}./loxone.sh status${NC}"
   echo -e "  Open:     ${BOLD}./loxone.sh open${NC}       ${DIM}← opens browser directly${NC}"
+  echo ""
+  echo -e "  ${BOLD}What happens on first start:${NC}"
+  echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
+  echo -e "  1. Docker builds the image (${BOLD}5-10 min${NC} — only once)"
+  echo -e "  2. Open ${BOLD}http://localhost:${HTTP_PORT}${NC} in your browser"
+  if [ "$BACKEND" = "kasmvnc" ]; then
+    if [ -n "$VNC_PASSWORD" ]; then
+      echo -e "  3. Login: username ${BOLD}kasm_user${NC}  password ${BOLD}${VNC_PASSWORD}${NC}"
+    else
+      echo -e "  3. Login: username ${BOLD}kasm_user${NC}  password ${BOLD}changeme${NC}"
+    fi
+  fi
+  echo -e "  4. Loxone Config installer wizard opens — click through it (${BOLD}~10 min${NC})"
+  echo -e "  5. Done — Loxone Config opens automatically on every future start"
   echo ""
   echo -e "  ${DIM}loxone.sh was saved in this folder for convenience.${NC}"
   sep
@@ -525,7 +505,18 @@ show_summary() {
   echo ""
   case "${ans:-Y}" in
     [Nn]*)
-      info "When you're ready, run:  ./loxone.sh start"
+      echo ""
+      info "When you're ready:"
+      echo -e "    ${BOLD}./loxone.sh start${NC}"
+      echo ""
+      echo -e "  Then open: ${BOLD}http://localhost:${HTTP_PORT}${NC}"
+      if [ "$BACKEND" = "kasmvnc" ]; then
+        if [ -n "$VNC_PASSWORD" ]; then
+          echo -e "  Login:     username ${BOLD}kasm_user${NC}  password ${BOLD}${VNC_PASSWORD}${NC}"
+        else
+          echo -e "  Login:     username ${BOLD}kasm_user${NC}  password ${BOLD}changeme${NC}"
+        fi
+      fi
       echo ""
       ;;
     *)
@@ -561,18 +552,18 @@ show_summary() {
         echo -e "  ${BOLD}Open in your browser: http://localhost:${HTTP_PORT}${NC}"
         echo ""
         if [ "$BACKEND" = "kasmvnc" ]; then
-          echo -e "  ${BOLD}Login credentials:${NC}"
+          echo -e "  ${BOLD}Browser login:${NC}"
           echo -e "    Username: ${BOLD}kasm_user${NC}"
           if [ -n "$VNC_PASSWORD" ]; then
-            echo -e "    Password: ${BOLD}(the password you set above)${NC}"
+            echo -e "    Password: ${BOLD}${VNC_PASSWORD}${NC}"
           else
             echo -e "    Password: ${BOLD}changeme${NC}  ${DIM}← set one later with ./setup.sh${NC}"
           fi
           echo ""
         fi
-        echo -e "  ${DIM}On first launch, the Loxone Config setup wizard opens in your browser."
-        echo -e "  Click through it to install — takes ~10-15 min the first time."
-        echo -e "  Requires ${CONFIG_PATH}/LoxoneConfigSetup.exe to be present.${NC}"
+        echo -e "  ${DIM}Loxone Config installer wizard will open in your browser."
+        echo -e "  Click through it to install (~10 min). After that, Loxone Config"
+        echo -e "  opens automatically on every start — no wizard again.${NC}"
         echo ""
         if command -v open &>/dev/null; then
           read -r -p "  Open browser now? [Y/n]: " open_ans

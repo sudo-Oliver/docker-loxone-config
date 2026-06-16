@@ -2,19 +2,22 @@
 
 Docker container for [Loxone Config](https://www.loxone.com/dede/produkte/loxone-config/)
 
-The Windows GUI of the Loxone Config application is run through [Wine](https://en.wikipedia.org/wiki/Wine_(software)) and accessed via a modern web browser (no installation needed on client side) or any VNC client.
+Runs the Loxone Config Windows GUI through [Wine](https://en.wikipedia.org/wiki/Wine_(software)), accessible in any browser — no client installation needed.
 
-350 MB RAM. Runs on anything with Docker: Mac, Linux, Raspberry Pi, NAS, home server.
+~400 MB RAM. Works on anything with Docker: Apple Silicon Mac, Intel Mac/Linux, Raspberry Pi, NAS, home server.
 
----
-
-> **Based on [lian/docker-loxone-config](https://github.com/lian/docker-loxone-config)** — the original brilliant idea of running Loxone Config via Wine + noVNC in Docker belongs entirely to [lian](https://github.com/lian). This fork adds Apple Silicon support (Rosetta 2 primary + QEMU-user fallback), a platform auto-detection setup script, security defaults, and cross-platform CI.
-
-This container is based on the fantastic [jlesage/baseimage-gui](https://hub.docker.com/r/jlesage/baseimage-gui).
+> **Based on [lian/docker-loxone-config](https://github.com/lian/docker-loxone-config)** — the original idea of running Loxone Config via Wine + noVNC in Docker belongs to [lian](https://github.com/lian). This fork adds full Apple Silicon support via FEX-Emu, a guided setup script, KasmVNC high-quality streaming, and cross-platform CI.
 
 ---
 
 ## Quick Start
+
+**Step 1 — Download the Loxone Config installer** (before running setup):
+
+> Go to **https://www.loxone.com/enen/support/downloads/**
+> Download **Loxone Config** → Windows `.exe` installer → save to your **Downloads** folder.
+
+**Step 2 — Run setup:**
 
 ```shell
 git clone https://github.com/sudo-Oliver/docker-loxone-config
@@ -22,47 +25,84 @@ cd docker-loxone-config
 chmod +x setup.sh && ./setup.sh
 ```
 
-The guided setup (~2 minutes) asks a few plain-language questions, then offers to build and start automatically. It generates a `loxone.sh` helper for daily use:
+`setup.sh` detects your hardware, asks a few plain-language questions (password, port, keyboard layout), finds the installer automatically, and offers to build and start right away.
+
+**Step 3 — Start and open:**
 
 ```shell
-./loxone.sh start    # start (or resume)
-./loxone.sh stop     # stop
-./loxone.sh restart  # restart (fixes most issues)
-./loxone.sh status   # check if running
-./loxone.sh open     # open in browser
+./loxone.sh start
 ```
 
-**First launch takes 10-15 minutes** to install Wine + Loxone Config inside the container. Subsequent launches take seconds. Your Loxone project files are preserved in the data folder across restarts and updates.
+Then open **http://localhost:6901** in your browser.
+
+Login with:
+- **Username:** `kasm_user`
+- **Password:** the password you set during setup (or `changeme` if you skipped)
+
+**What happens on first launch:** The Loxone Config installer wizard opens in your browser. Click through it — takes about 10 minutes. After that, Loxone Config opens automatically on every start — no wizard again.
+
+**Daily use commands:**
+
+```shell
+./loxone.sh start    # start (or resume after stop)
+./loxone.sh stop     # stop
+./loxone.sh restart  # restart — fixes most stuck states
+./loxone.sh status   # check if running
+./loxone.sh open     # open browser directly
+./loxone.sh logs     # tail live logs
+```
 
 ---
 
-## What setup.sh Does
+## Before You Start
 
-1. **Detects your hardware** automatically (Apple Silicon, Intel, ARM, 32-bit x86) — no manual choice needed
-2. **Display quality** — recommends High-Quality (KasmVNC) with a plain explanation; Standard (noVNC) as fallback
-3. **Password** — explains who can access without one; enforces minimum length
-4. **Data folder** — where your Loxone projects are stored (survives container updates)
-5. **Port** — default `6901` (High-Quality) or `5800` (Standard); change if needed
-6. **Keyboard layout** — so keys work correctly inside Loxone Config
-7. Writes `.env`, generates `loxone.sh`, offers to build immediately
+Download the Loxone Config Windows installer from the Loxone website:
+
+> **https://www.loxone.com/enen/support/downloads/**
+>
+> Look for **Loxone Config** → download the Windows `.exe` installer.
+> Save it to your **Downloads** folder — `setup.sh` finds and copies it automatically.
 
 ---
 
-## Display Backend: KasmVNC vs Classic noVNC
+## Apple Silicon (M1 / M2 / M3 / M4)
 
-`setup.sh` asks which backend you want. KasmVNC is the recommended choice.
+Apple Silicon is fully supported with **native ARM64 performance**. No Rosetta 2 checkbox, no QEMU, no extra setup.
 
-| Feature | KasmVNC (recommended) | Classic noVNC (legacy) |
-|---------|----------------------|------------------------|
-| Streaming | WebP/JPEG adaptive — smooth, low bandwidth | Raw VNC framebuffer — laggy on updates |
-| Clipboard | Full bidirectional | Limited, unreliable |
-| Resolution | Dynamic — resizes to browser window | Static, must be set before start |
-| Password | Any length | Max 8 chars (RFC 6143 limit) |
-| File transfer | Upload/download in browser UI | Not available |
-| Port | 6901 | 5800 |
-| Maturity | Modern, container-first design | Stable, widely used |
+`setup.sh` detects Apple Silicon automatically and configures everything correctly.
 
-**KasmVNC manual setup** (without setup.sh):
+**How it works:** Loxone Config embeds Qt6WebEngine (Chromium). Chromium installs a signal handler that checks AVX CPU-register state. Rosetta 2 delegates AVX state to the hardware kernel, which populates signal frames incorrectly under Docker — causing a hard crash. [FEX-Emu](https://fex-emu.com/) manages the entire x86-64 CPU state in software, including AVX xsave headers, so the crash never occurs.
+
+| Layer | What runs |
+|-------|-----------|
+| Apple Silicon Mac | ARM64 hardware |
+| Docker Desktop | Native ARM64 Linux VM |
+| Container | `linux/arm64` (native — no Rosetta, no QEMU) |
+| FEX-Emu | JIT x86-64 → ARM64 translator (handles AVX correctly) |
+| Wine 11 (WineHQ stable) | x86-64 userspace inside FEX |
+| KasmVNC | ARM64 native display server |
+| LoxoneConfig.exe | Windows AMD64 app |
+
+**Manual setup without setup.sh (Apple Silicon):**
+
+```shell
+# .env
+COMPOSE_FILE=docker-compose.yml:docker-compose.kasmvnc.yml
+PLATFORM=linux/arm64
+DOCKERFILE=Dockerfile.arm64-fex
+VNC_PASSWORD=yourpassword
+
+docker compose up -d --build
+# open http://localhost:6901  (username: kasm_user)
+```
+
+---
+
+## Intel Mac / Linux x86-64
+
+Runs natively — no translation layer needed.
+
+**Manual setup without setup.sh (Intel/AMD64):**
 
 ```shell
 # .env
@@ -70,81 +110,24 @@ COMPOSE_FILE=docker-compose.yml:docker-compose.kasmvnc.yml
 PLATFORM=linux/amd64
 DOCKERFILE=Dockerfile.kasmvnc
 VNC_PASSWORD=yourpassword
-VNC_RESOLUTION=1920x1080
 
 docker compose up -d --build
-# open http://localhost:6901
-```
-
-**Classic noVNC manual setup**:
-
-```shell
-# .env
-COMPOSE_FILE=docker-compose.yml:docker-compose.classic.yml
-PLATFORM=linux/amd64
-DOCKERFILE=Dockerfile.amd64
-VNC_PASSWORD=yourpass   # max 8 chars
-
-docker compose up -d --build
-# open http://localhost:5800
+# open http://localhost:6901  (username: kasm_user)
 ```
 
 ---
 
-## Apple Silicon (M1/M2/M3/M4)
+## Linux ARM64 (Raspberry Pi, ARM server)
 
-The primary image (`Dockerfile.amd64`) targets `linux/amd64` and runs via **Rosetta 2** on Apple Silicon — near-native speed, no manual configuration needed.
-
-`setup.sh` detects Apple Silicon automatically and writes the correct `.env`.
-
-**Docker Desktop requirement**: Enable Rosetta — exact path:
-
-> Docker Desktop → **Settings** → **General** → **Virtual Machine Options**
-> ☑ **Use Rosetta for x86/amd64 emulation on Apple Silicon**
-
-One-time checkbox. Without it, Docker falls back to QEMU emulation which works but is noticeably slower. While you're there, *VirtioFS* is the recommended file sharing option (Docker Desktop usually selects it automatically).
-
-**Manual setup without setup.sh**:
+Same FEX-Emu stack as Apple Silicon — `Dockerfile.arm64-fex`.
 
 ```shell
 # .env
-PLATFORM=linux/amd64
-DOCKERFILE=Dockerfile.amd64
-VNC_PASSWORD=yourpassword
-
-docker compose up -d --build
-```
-
----
-
-## Apple Silicon — QEMU Fallback (Rosetta-free)
-
-> **Use this only if Rosetta 2 is unavailable.** Rosetta 2 (`Dockerfile.amd64`) is always faster — use it as long as Apple supports it.
-
-If Rosetta 2 is deprecated or unavailable, `Dockerfile.arm64-qemu` provides a fully independent fallback:
-
-- Native `linux/arm64` container — no Apple dependency
-- `qemu-i386-static` inside the container translates i386 Wine ELF → ARM64 at runtime
-- Performance: ~3-5x slower than Rosetta 2, but sufficient for Loxone Config GUI usage
-- Works identically on Linux ARM64 (Raspberry Pi 64-bit, ARM servers)
-
-**One-time host setup** (registers i386 binfmt on the host kernel — re-run after reboot):
-
-```shell
-docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-```
-
-`setup.sh` detects Rosetta availability and offers to run this automatically when needed.
-
-**Manual setup for QEMU fallback:**
-
-```shell
-# .env
+COMPOSE_FILE=docker-compose.yml:docker-compose.kasmvnc.yml
 PLATFORM=linux/arm64
-DOCKERFILE=Dockerfile.arm64-qemu
+DOCKERFILE=Dockerfile.arm64-fex
 VNC_PASSWORD=yourpassword
 
-docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 docker compose up -d --build
 ```
 
@@ -152,82 +135,65 @@ docker compose up -d --build
 
 ## Platform Matrix
 
-| Host | Backend | Dockerfile | Platform | Speed |
-|------|---------|------------|----------|-------|
-| Apple Silicon + Rosetta 2 | KasmVNC | Dockerfile.kasmvnc | linux/amd64 | Fast (Rosetta 2) ★ |
-| Apple Silicon + Rosetta 2 | Classic | Dockerfile.amd64 | linux/amd64 | Fast (Rosetta 2) |
-| Apple Silicon (no Rosetta) | KasmVNC | Dockerfile.arm64-kasmvnc | linux/arm64 | KasmVNC native / Wine QEMU |
-| Apple Silicon (no Rosetta) | Classic | Dockerfile.arm64-qemu | linux/arm64 | QEMU-user fallback |
-| Intel macOS / Linux amd64 | KasmVNC | Dockerfile.kasmvnc | linux/amd64 | Native ★ |
-| Intel macOS / Linux amd64 | Classic | Dockerfile.amd64 | linux/amd64 | Native |
-| Linux ARM64 (RPi, ARM server) | KasmVNC | Dockerfile.arm64-kasmvnc | linux/arm64 | KasmVNC native / Wine QEMU |
-| Linux ARM64 (RPi, ARM server) | Classic | Dockerfile.arm64-qemu | linux/arm64 | QEMU-user |
-| Legacy 32-bit x86 | Classic only | Dockerfile | linux/386 | Native |
+| Host | Display | Dockerfile | Platform | Translation |
+|------|---------|------------|----------|-------------|
+| Apple Silicon (M1/M2/M3/M4) | KasmVNC ★ | `Dockerfile.arm64-fex` | `linux/arm64` | FEX-Emu JIT |
+| Intel Mac / Linux amd64 | KasmVNC ★ | `Dockerfile.kasmvnc` | `linux/amd64` | Native |
+| Intel Mac / Linux amd64 | Classic | `Dockerfile.amd64` | `linux/amd64` | Native |
+| Linux ARM64 (RPi, ARM server) | KasmVNC ★ | `Dockerfile.arm64-fex` | `linux/arm64` | FEX-Emu JIT |
+| Legacy 32-bit x86 | Classic | `Dockerfile` | `linux/386` | Native |
 
-★ = recommended combination
+★ = recommended
 
 ---
 
-## Usage
+## Display Backend: KasmVNC vs Classic noVNC
 
-### docker-compose.yml
+`setup.sh` recommends KasmVNC. Use Classic only if KasmVNC causes problems.
 
-The `docker-compose.yml` reads settings from `.env`. Run `./setup.sh` to generate it, or copy `.env.example`:
+| Feature | KasmVNC (recommended) | Classic noVNC (legacy) |
+|---------|----------------------|------------------------|
+| Streaming | WebP/JPEG adaptive — smooth, low bandwidth | Raw VNC — laggy on updates |
+| Clipboard | Full bidirectional | Limited, unreliable |
+| Resolution | Dynamic (resizes to browser window) | Fixed, set before start |
+| Password | Any length | Max 8 chars (RFC 6143) |
+| File transfer | Upload/download in browser | Not available |
+| Port | 6901 | 5800 |
 
-```shell
-cp .env.example .env
-# edit .env to your needs
-docker compose up -d --build
-```
+---
 
-Minimal example without setup.sh:
+## What setup.sh Does
 
-```yaml
-services:
-  loxone-config:
-    image: "local/loxone-config:latest"
-    container_name: loxone-config
-    platform: linux/amd64
-    build:
-      context: .
-      dockerfile: Dockerfile.amd64
-    ports:
-      - "5800:5800"
-    environment:
-      - VNC_PASSWORD=changeme
-      - USER_ID=1000
-      - GROUP_ID=1000
-      - DISPLAY_WIDTH=1920
-      - DISPLAY_HEIGHT=1080
-      - HOME=/config/
-      - WINEPREFIX=/config/wine
-      - WINEARCH=win32
-      - XLANG=de
-      - KEEP_APP_RUNNING=1
-    volumes:
-      - "./config:/config:rw"
-      - "./config/Loxone:/config/wine/drive_c/users/app/Documents/Loxone:rw"
-    restart: unless-stopped
-```
+1. **Detects hardware** — Apple Silicon, Intel, ARM, 32-bit; no manual choice needed
+2. **Display quality** — recommends KasmVNC with plain explanation; Classic as fallback
+3. **Password** — explains network exposure; enforces minimum length
+4. **Data folder** — where Loxone projects are stored (survives container updates)
+5. **Installer** — finds `LoxoneConfigSetup.exe` in Downloads automatically
+6. **Port** — default `6901` (KasmVNC) or `5800` (Classic); change if occupied
+7. **Keyboard layout** — so keys work correctly inside Loxone Config
+8. Writes `.env`, generates `loxone.sh`, offers to build immediately
 
-**NOTE**: On first launch, required fonts, libraries and Loxone Config are installed into `/config/wine`. Further launches skip this step. To start clean, delete `/config/wine`.
+---
 
-### Data Paths
+## Data Paths
 
 | Container path | Description |
 |----------------|-------------|
-| `/config` | Persistent data: config, logs, Wine prefix |
+| `/config` | Persistent data: Wine prefix, logs, installer |
 | `/config/Loxone` | Loxone Config project files |
-| `/config/wine` | Wine installation (delete for fresh install) |
+| `/config/wine` | Wine prefix (delete for clean reinstall) |
+| `/config/LoxoneConfigSetup.exe` | Installer — place here before first start |
 
-**Custom paths** — set via `.env` or environment:
+**Custom paths** — set via `.env`:
 
 ```
-CONFIG_PATH=/mnt/user/loxone-daten
-LOXONE_PATH=/mnt/user/loxone-daten/Loxone
+CONFIG_PATH=/mnt/nas/loxone-data
+LOXONE_PATH=/mnt/nas/loxone-data/Loxone
 ```
 
-### Environment Variables
+---
+
+## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -237,96 +203,70 @@ LOXONE_PATH=/mnt/user/loxone-daten/Loxone
 | `KEEP_APP_RUNNING` | Auto-restart on crash | `1` |
 | `DISPLAY_WIDTH` | Window width (px) | `1920` |
 | `DISPLAY_HEIGHT` | Window height (px) | `1080` |
-| `SECURE_CONNECTION` | Enable HTTPS + SSL-VNC | `0` |
-| `VNC_PASSWORD` | Web/VNC password (max 8 chars) | (unset) |
-| `XLANG` | Keyboard layout | `de` |
+| `VNC_PASSWORD` | Web/VNC password | (unset) |
+| `XLANG` | Keyboard layout (`de`, `at`, `ch`, `us`, `en`, `fr`) | `de` |
+| `QTWEBENGINE_CHROMIUM_FLAGS` | Chromium flags (passed to Loxone's embedded browser) | `--no-sandbox` |
 
-### Ports
+---
+
+## Ports
 
 | Port | Description |
 |------|-------------|
-| 5800 | Web browser (noVNC) |
-| 5900 | VNC client (optional) |
+| 6901 | KasmVNC web browser |
+| 5901 | KasmVNC raw VNC client |
+| 5800 | Classic noVNC (if using Classic backend) |
+| 5900 | Classic VNC client |
 
-For localhost-only access: `127.0.0.1:5800:5800` instead of `5800:5800`.
-
-### Keyboard Maps
-
-| Map | Language |
-|-----|----------|
-| `us` | English (US) |
-| `en` | English |
-| `at` | German (Austria) |
-| `ch` | German (Switzerland) |
-| `de` | German (default) |
-| `fr` | French |
+For localhost-only access: `127.0.0.1:6901:6901` instead of `6901:6901`.
 
 ---
 
 ## Security
 
-**Do not expose this service to the internet or local network without authentication.**
+**Do not expose this service to the internet without authentication.**
 
-### Option 1: VNC Password (minimum)
+### Password (minimum)
 
-```
-VNC_PASSWORD=yourpassword   # max 8 chars (RFC 6143)
-```
-
-### Option 2: VNC Password + HTTPS
+Set `VNC_PASSWORD` in `.env`. KasmVNC accepts any length. Classic noVNC is limited to 8 characters.
 
 ```
 VNC_PASSWORD=yourpassword
-SECURE_CONNECTION=1
 ```
 
-With `SECURE_CONNECTION=1`, a self-signed certificate is generated automatically in `/config/certs/`. Provide your own:
+KasmVNC login: username `kasm_user`, password as set above (default: `changeme`).
 
-| File | Purpose |
-|------|---------|
-| `/config/certs/vnc-server.pem` | VNC SSL (private key + cert) |
-| `/config/certs/web-privkey.pem` | HTTPS private key |
-| `/config/certs/web-fullchain.pem` | HTTPS certificate chain |
+### SSH Tunnel (recommended for remote access)
 
-### Option 3: SSH Tunnel (recommended for remote access)
-
-Keep port 5800 bound to localhost only, access via SSH tunnel:
+Keep port bound to localhost, access via SSH:
 
 ```shell
-ssh -L 5800:localhost:5800 user@your-server
-# then open: http://localhost:5800
+ssh -L 6901:localhost:6901 user@your-server
+# open: http://localhost:6901
 ```
 
 No exposed ports, no certificates needed.
 
-### Option 4: Localhost-only binding
+### Localhost-only binding
 
 ```yaml
 ports:
-  - "127.0.0.1:5800:5800"
+  - "127.0.0.1:6901:6901"
 ```
 
 ---
 
-## User/Group IDs
+## Reinstall / Reset
+
+To wipe the Wine prefix and reinstall Loxone Config from scratch:
 
 ```shell
-id   # shows your uid and gid
+./loxone.sh stop
+rm -rf ./config/wine
+./loxone.sh start
 ```
 
-Set `USER_ID` and `GROUP_ID` to match the host user owning the config volume. Avoids permission issues on mounted volumes.
-
----
-
-## Accessing the GUI
-
-```
-# Browser (noVNC)
-http://<HOST IP>:5800
-
-# VNC client
-<HOST IP>:5900
-```
+The Loxone Config installer runs again automatically. Your project files in `./config/Loxone` are untouched.
 
 ---
 
@@ -338,13 +278,61 @@ docker exec -it loxone-config bash
 
 ---
 
+## Performance
+
+| Metric | FEX-Emu (Apple Silicon) | Native (Intel/AMD64) |
+|--------|------------------------|----------------------|
+| RAM | ~400 MB | ~350 MB |
+| Startup | seconds (after first build) | seconds |
+| JIT speed | ~50-70% native x86 speed | 100% |
+| vs Windows VM | 20-50x less RAM; seconds vs minutes startup | — |
+
+FEX-Emu JIT speed is sufficient for Loxone Config's GUI workload (config editing, programming, firmware upload). No perceptible lag in practice.
+
+---
+
+## Troubleshooting
+
+**App won't start / install fails:**
+
+```shell
+./loxone.sh logs   # look for errors
+./loxone.sh restart
+```
+
+**Black screen in browser:**
+
+```shell
+./loxone.sh restart
+```
+
+**Clean reinstall (keeps project files):**
+
+```shell
+./loxone.sh stop
+rm -rf ./config/wine
+./loxone.sh start
+```
+
+**LoxoneConfigSetup.exe not found:**
+
+```shell
+cp ~/Downloads/LoxoneConfigSetup*.exe ./config/LoxoneConfigSetup.exe
+./loxone.sh restart
+```
+
+---
+
 ## Getting Help
 
-[Create a new issue](https://github.com/lian/docker-loxone-config/issues)
+[Create a new issue](https://github.com/sudo-Oliver/docker-loxone-config/issues)
 
-## Credits & Thanks
+---
 
-* **[lian](https://github.com/lian)** — original author of [docker-loxone-config](https://github.com/lian/docker-loxone-config), the idea and core implementation
-* **[jlesage](https://github.com/jlesage)** — [baseimage-gui](https://hub.docker.com/r/jlesage/baseimage-gui) which makes all the noVNC/X11/GUI-in-Docker magic possible
-* [t_heinrich](https://www.loxforum.com/member/1843-t_heinrich) for bug reports
-* [timboettiger](https://github.com/timboettiger) for keyboard maps
+## Credits
+
+- **[lian](https://github.com/lian)** — original [docker-loxone-config](https://github.com/lian/docker-loxone-config), the core idea and implementation
+- **[FEX-Emu](https://fex-emu.com/)** — x86-64 JIT translator enabling Apple Silicon support without Rosetta 2
+- **[KasmTech](https://www.kasmweb.com/)** — [KasmVNC](https://github.com/kasmtech/KasmVNC) high-quality browser VNC
+- **[WineHQ](https://www.winehq.org/)** — Wine compatibility layer
+- [timboettiger](https://github.com/timboettiger) for keyboard maps
