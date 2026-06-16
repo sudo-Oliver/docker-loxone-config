@@ -702,25 +702,75 @@ setup_installer() {
 }
 
 # ── shell alias ───────────────────────────────────────────────────────────────
+_detect_shell_rc() {
+  # Try to identify the user's interactive shell config file.
+  # Checks existing files first (most reliable), then falls back to $SHELL.
+  local os; os=$(uname -s)
+
+  # zsh — check most likely locations
+  if [ -f "$HOME/.zshrc" ]; then
+    echo "$HOME/.zshrc"; return
+  fi
+
+  # fish — config.fish uses a different alias syntax; handle separately
+  if [ -f "$HOME/.config/fish/config.fish" ]; then
+    echo "fish"; return
+  fi
+
+  # bash — macOS uses .bash_profile, Linux .bashrc
+  if [ -f "$HOME/.bash_profile" ] && [ "$os" = "Darwin" ]; then
+    echo "$HOME/.bash_profile"; return
+  fi
+  if [ -f "$HOME/.bashrc" ]; then
+    echo "$HOME/.bashrc"; return
+  fi
+
+  # fall back to $SHELL
+  case "${SHELL:-}" in
+    */zsh)  echo "$HOME/.zshrc" ;;
+    */fish) echo "fish" ;;
+    */bash)
+      if [ "$os" = "Darwin" ]; then echo "$HOME/.bash_profile"
+      else echo "$HOME/.bashrc"; fi ;;
+    *)      echo "$HOME/.profile" ;;
+  esac
+}
+
 setup_alias() {
   local loxone_abs
   loxone_abs="$(cd "$(dirname "$0")" && pwd)/loxone.sh"
 
-  # detect shell config file
-  local shell_rc=""
-  case "${SHELL:-}" in
-    */zsh)  shell_rc="$HOME/.zshrc" ;;
-    */bash) shell_rc="$HOME/.bashrc" ;;
-    *)      shell_rc="$HOME/.profile" ;;
-  esac
-  # macOS bash uses .bash_profile
-  [ "$(uname -s)" = "Darwin" ] && [ "${SHELL:-}" != */zsh ] && shell_rc="$HOME/.bash_profile"
+  local shell_rc
+  shell_rc=$(_detect_shell_rc)
 
-  # skip if alias already set
+  # ── fish: uses `function` not `alias` ──────────────────────────────────────
+  if [ "$shell_rc" = "fish" ]; then
+    local fish_cfg="$HOME/.config/fish/config.fish"
+    if grep -q "function loxone" "$fish_cfg" 2>/dev/null; then
+      ok "Shell shortcut already set (fish): type ${BOLD}loxone start${NC} anywhere"
+      sep; return
+    fi
+
+    header "Shell Shortcut (Optional)"
+    echo ""
+    echo "  fish shell detected. Add a global 'loxone' function?"
+    echo -e "    ${BOLD}loxone start${NC}  ${DIM}instead of  ./loxone.sh start${NC}"
+    echo ""
+    echo -e "  Adds to: ${BOLD}${fish_cfg}${NC}"
+    echo ""
+    read -r -p "  Add 'loxone' shortcut? [Y/n]: " ans; echo ""
+    case "${ans:-Y}" in [Nn]*) info "Skipped."; sep; return ;; esac
+
+    printf '\n# Loxone Config shortcut (added by setup.sh)\nfunction loxone\n    %s $argv\nend\n' "$loxone_abs" >> "$fish_cfg"
+    ok "Added to ${fish_cfg}"
+    echo -e "  Activate: ${BOLD}source ${fish_cfg}${NC}  or open new terminal tab."
+    sep; return
+  fi
+
+  # ── posix shells (zsh / bash) ───────────────────────────────────────────────
   if grep -q "alias loxone=" "$shell_rc" 2>/dev/null; then
-    ok "Shell alias already set: type ${BOLD}loxone start${NC} anywhere"
-    sep
-    return
+    ok "Shell shortcut already set: type ${BOLD}loxone start${NC} anywhere"
+    sep; return
   fi
 
   header "Shell Shortcut (Optional)"
@@ -733,26 +783,21 @@ setup_alias() {
   echo -e "    ${BOLD}loxone logs${NC}"
   echo -e "    ${BOLD}loxone report${NC}"
   echo ""
-  echo -e "  This adds one line to ${BOLD}${shell_rc}${NC}."
+  echo -e "  Adds one line to: ${BOLD}${shell_rc}${NC}"
   echo -e "  ${DIM}(If you move this folder later, re-run setup.sh to update it.)${NC}"
   echo ""
 
-  read -r -p "  Add 'loxone' shortcut? [Y/n]: " ans
-  echo ""
+  read -r -p "  Add 'loxone' shortcut? [Y/n]: " ans; echo ""
   case "${ans:-Y}" in
-    [Nn]*)
-      info "Skipped. You can always use: ./loxone.sh start"
-      sep
-      return
-      ;;
+    [Nn]*) info "Skipped. You can always use: ./loxone.sh start"; sep; return ;;
   esac
 
   printf '\n# Loxone Config shortcut (added by setup.sh)\nalias loxone="%s"\n' "$loxone_abs" >> "$shell_rc"
   ok "Added alias to ${shell_rc}"
   echo ""
-  echo -e "  Activate now by running:"
+  echo -e "  Activate now:"
   echo -e "    ${BOLD}source ${shell_rc}${NC}"
-  echo -e "  ${DIM}Or just open a new terminal tab — it loads automatically.${NC}"
+  echo -e "  ${DIM}Or open a new terminal tab — loads automatically.${NC}"
   sep
 }
 
