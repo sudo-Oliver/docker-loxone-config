@@ -418,6 +418,62 @@ case "\${1:-help}" in
       echo "Open manually: \${ACCESS_URL}"
     fi
     ;;
+  report)
+    echo ""
+    echo "  Collecting system info for bug report..."
+    echo ""
+    ARCH=\$(uname -m)
+    OS=\$(uname -s)
+    OS_VER=\$(sw_vers -productVersion 2>/dev/null || uname -r)
+    DOCKER_VER=\$(docker --version 2>/dev/null || echo "not found")
+    CONTAINER_STATUS=\$(docker compose ps --format "table {{.Service}}\t{{.Status}}" 2>/dev/null || echo "unavailable")
+    LAST_LOGS=\$(docker compose logs --tail=30 2>/dev/null || echo "unavailable")
+
+    REPORT=\$(cat <<INFO
+**System:**
+- OS: \${OS} \${OS_VER} (\${ARCH})
+- Docker: \${DOCKER_VER}
+- Backend: ${BACKEND}
+- Platform: ${PLATFORM}
+- Dockerfile: ${DOCKERFILE}
+
+**Container status:**
+\`\`\`
+\${CONTAINER_STATUS}
+\`\`\`
+
+**Last 30 log lines:**
+\`\`\`
+\${LAST_LOGS}
+\`\`\`
+
+**What I expected:**
+
+
+**What happened instead:**
+
+INFO
+)
+
+    echo "─────────────────────────────────────────────────────"
+    echo "\${REPORT}"
+    echo "─────────────────────────────────────────────────────"
+    echo ""
+    echo "  Copy the text above into a new GitHub issue:"
+    echo "  https://github.com/sudo-Oliver/docker-loxone-config/issues/new"
+    echo ""
+    ISSUE_URL="https://github.com/sudo-Oliver/docker-loxone-config/issues/new?labels=bug&template=bug_report.md"
+    if command -v open &>/dev/null; then
+      read -r -p "  Open GitHub Issues in browser? [Y/n]: " ans
+      case "\${ans:-Y}" in
+        [Nn]*) ;;
+        *) open "\${ISSUE_URL}" ;;
+      esac
+    else
+      echo "  Open: \${ISSUE_URL}"
+    fi
+    echo ""
+    ;;
   help|--help|-h|*)
     echo ""
     echo "  Loxone Config — control commands"
@@ -429,13 +485,15 @@ case "\${1:-help}" in
     echo "  ./loxone.sh logs     → Show live logs"
     echo "  ./loxone.sh update   → Rebuild image (gets latest Wine + security patches)"
     echo "  ./loxone.sh open     → Open in browser"
+    echo "  ./loxone.sh report   → Collect system info + open GitHub Issues"
     echo ""
     echo "  Browser access: \${ACCESS_URL}"
     echo ""
-    echo "  Not working? Try:"
+    echo "  Not working? Try in order:"
     echo "    1. ./loxone.sh restart"
-    echo "    2. ./loxone.sh logs    (look for errors)"
+    echo "    2. ./loxone.sh logs    (look for error messages)"
     echo "    3. ./loxone.sh stop && ./loxone.sh start"
+    echo "    4. ./loxone.sh report  (file a bug with logs pre-filled)"
     echo ""
     ;;
 esac

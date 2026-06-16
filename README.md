@@ -291,35 +291,58 @@ FEX-Emu JIT speed is sufficient for Loxone Config's GUI workload (config editing
 
 ---
 
+## Daily Workflow
+
+```
+Start:   ./loxone.sh start     → container up (seconds after first build)
+Open:    ./loxone.sh open      → opens http://localhost:6901 in browser
+                                  login: kasm_user / your password
+Use:     Loxone Config runs in browser tab — like remote desktop
+Stop:    ./loxone.sh stop      → container down, frees RAM
+```
+
+Closing the browser tab is fine — the container keeps running. Your project files live in `./config/` on your Mac, never inside the container. Container can be deleted and rebuilt without losing any data.
+
+---
+
 ## Troubleshooting
 
-**App won't start / install fails:**
+**Try in this order:**
 
 ```shell
-./loxone.sh logs   # look for errors
-./loxone.sh restart
-```
-
-**Black screen in browser:**
-
-```shell
-./loxone.sh restart
-```
-
-**Clean reinstall (keeps project files):**
-
-```shell
+./loxone.sh restart            # fixes 90% of issues — always try this first
+./loxone.sh logs               # see what's wrong
 ./loxone.sh stop
-rm -rf ./config/wine
-./loxone.sh start
+./loxone.sh start              # clean start after a stop
 ```
 
-**LoxoneConfigSetup.exe not found:**
-
+**Black/blank screen in browser:**
 ```shell
+./loxone.sh restart
+```
+
+**Loxone Config won't install (first launch):**
+```shell
+# make sure the installer is there:
+ls ./config/LoxoneConfigSetup.exe
+
+# if missing:
 cp ~/Downloads/LoxoneConfigSetup*.exe ./config/LoxoneConfigSetup.exe
 ./loxone.sh restart
 ```
+
+**Nuclear option — full reinstall (project files stay safe):**
+```shell
+./loxone.sh stop
+rm -rf ./config/wine           # wipes Wine prefix only, not your Loxone projects
+./loxone.sh start              # re-installs Wine + Loxone Config from scratch (~10 min)
+```
+
+**Report a bug (auto-collects logs + system info):**
+```shell
+./loxone.sh report
+```
+Opens GitHub Issues with system info pre-filled. Describe what went wrong and submit.
 
 ---
 
