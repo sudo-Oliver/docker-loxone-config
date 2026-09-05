@@ -68,7 +68,7 @@ setxkbmap "$XLANG" 2>/dev/null || true
 # HOME=/config is set at runtime by KasmVNC — build-time /root/.fex-emu is wrong dir.
 # FEX needs: $HOME/.fex-emu/Config.json with {"Config":{"RootFS":"wine"}}
 #            $HOME/.fex-emu/RootFS/wine  →  /opt/fex-rootfs (symlink)
-if [ -d /opt/fex-rootfs ] && command -v FEXInterpreter >/dev/null 2>&1; then
+if [ -d /opt/fex-rootfs ] && command -v FEX >/dev/null 2>&1; then
   mkdir -p "$HOME/.fex-emu/RootFS"
   ln -sfn /opt/fex-rootfs "$HOME/.fex-emu/RootFS/wine"
   printf '{"Config":{"RootFS":"wine"}}\n' > "$HOME/.fex-emu/Config.json"
