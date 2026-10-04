@@ -149,6 +149,13 @@ choose_display_mode() {
     return
   fi
 
+  if [ "$PLATFORM_CLASS" = "arm64" ]; then
+    BACKEND="kasmvnc"
+    info "ARM64 system: High-Quality mode only (Standard not available here)."
+    sep
+    return
+  fi
+
   read -r -p "  Choose [1/2] (just press Enter for High-Quality): " ans
   echo ""
   case "${ans:-1}" in
