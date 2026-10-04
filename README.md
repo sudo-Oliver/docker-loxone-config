@@ -147,6 +147,8 @@ docker compose up -d --build
 
 ★ = recommended
 
+> **Loxone Config 17+ is 64-bit only.** The legacy 32-bit image (`Dockerfile`, `linux/386`) supports Loxone Config 16 and older only.
+
 ---
 
 ## Display Backend: KasmVNC vs Classic noVNC
