@@ -210,6 +210,7 @@ LOXONE_PATH=/mnt/nas/loxone-data/Loxone
 | `VNC_PASSWORD` | Web/VNC password | (unset) |
 | `XLANG` | Keyboard layout (`de`, `at`, `ch`, `us`, `en`, `fr`) | `de` |
 | `QTWEBENGINE_CHROMIUM_FLAGS` | Chromium flags (passed to Loxone's embedded browser) | `--no-sandbox` |
+| `MCP_PORT` | Port of the Loxone Config MCP Server (must match the port set in Config) | `57707` |
 
 ---
 
@@ -221,6 +222,7 @@ LOXONE_PATH=/mnt/nas/loxone-data/Loxone
 | 5901 | KasmVNC raw VNC client |
 | 5800 | Classic noVNC (if using Classic backend) |
 | 5900 | Classic VNC client |
+| 57707 | Loxone Config MCP Server for AI assistants (KasmVNC, bound to `127.0.0.1`) |
 
 For localhost-only access: `127.0.0.1:6901:6901` instead of `6901:6901`.
 
@@ -309,6 +311,56 @@ Closing the browser tab is fine — the container keeps running. Your project fi
 
 ---
 
+## AI Assistants (MCP) — Beta
+
+> **Beta:** this integration is new and has only been tested with Loxone Config 17.3 Beta. Expect rough edges and please [report issues](https://github.com/sudo-Oliver/docker-loxone-config/issues).
+
+Loxone Config 17.3 and later includes an **MCP Server**: an AI assistant (Claude Code, Claude Desktop, ChatGPT/Codex or any other MCP client) can read the open project, place and wire function blocks, change their settings and run the simulation. Every change goes through Config and can be undone step by step; nothing reaches your Miniserver until you save.
+
+The server runs inside the container. The container forwards it to your computer at `http://localhost:57707/mcp`.
+
+> Currently available on Apple Silicon / ARM64 (`Dockerfile.arm64-fex`). Intel/amd64 support follows.
+
+**1. Enable it in Config** — click the sparkles button in the title bar, tick *Enable the MCP Server*, keep port `57707`, confirm the one-time download.
+
+**2. Connect your assistant** — Config's own "connect" checkboxes look for assistants *inside* the container, so add the address manually on your computer instead:
+
+```bash
+# Claude Code
+claude mcp add --transport http loxone http://localhost:57707/mcp
+claude mcp list        # loxone: ... ✔ Connected
+```
+
+Other clients: add `http://localhost:57707/mcp` as a *Streamable HTTP* MCP server.
+
+**3. Open a project in Config** — the assistant always works on the project currently open.
+
+If you change the port in Config, set the same value as `MCP_PORT` in `.env` and run `docker compose up -d`.
+
+**Security:** the MCP Server has no password. It is published on `127.0.0.1` only, so only programs on your own computer can reach it. Do not change this binding to `0.0.0.0`. For remote access use the SSH tunnel described under [Security](#security). Switch the MCP Server off in Config when you don't need it.
+
+### Working on project files with lox-cli (optional)
+
+[lox-cli](https://github.com/eisber/lox-cli) by Markus Cozowicz is an independent command-line tool. AI agents use it to edit `.Loxone` project files directly, test them in an offline simulator and deploy them to the Miniserver. It is a separate project with its own license (AGPL-3.0). It is **not** bundled with this repository or image.
+
+Your projects are saved on your computer under `LOXONE_PATH` (default `./config/Loxone`). That means you can combine the two:
+
+```bash
+# Install: download the binary for your platform from
+# https://github.com/eisber/lox-cli/releases and put it on your PATH as `lox`
+export LOX_TELEMETRY=0         # lox-cli sends anonymous usage telemetry by default
+lox telemetry disable          # …and turn it off permanently
+lox config describe "./config/Loxone/Loxone Config/Projects/<Project>.Loxone"
+```
+
+> **Compatibility:** lox-cli 0.12.0 could not read a project saved by Loxone Config 17.3 in our test (`Malformed XML … Unexpected token inside opening tag`). Config 17.3 writes an attribute named `12hTF`. Its name starts with a digit, and lox-cli's strict XML parser rejects that. Check the lox-cli releases for a fix before relying on it.
+
+Then open the same project in Config in your browser to review the result visually.
+
+> **Back up your project first.** lox-cli writes to the file directly, not through Config, so Config's Undo does not cover those changes. Close the project in Config before editing the file with lox-cli.
+
+---
+
 ## Troubleshooting
 
 **Try in this order:**
@@ -363,3 +415,4 @@ Opens GitHub Issues with system info pre-filled. Describe what went wrong and su
 - **[KasmTech](https://www.kasmweb.com/)** — [KasmVNC](https://github.com/kasmtech/KasmVNC) high-quality browser VNC
 - **[WineHQ](https://www.winehq.org/)** — Wine compatibility layer
 - [timboettiger](https://github.com/timboettiger) for keyboard maps
+- **[lox-cli](https://github.com/eisber/lox-cli)** by [Markus Cozowicz](https://github.com/eisber), based on [lox](https://github.com/discostu105/lox) by [Christoph Neumüller](https://github.com/discostu105) — AI agent tooling for Loxone projects (separate project, AGPL-3.0)
