@@ -130,12 +130,12 @@ RUN mkdir -p /root/.fex-emu/RootFS \
  && ln -sfn /opt/fex-rootfs /root/.fex-emu/RootFS/wine \
  && printf '{"Config":{"RootFS":"wine"}}\n' > /root/.fex-emu/Config.json
 
-# Wine wrappers — explicit FEXInterpreter invocation (no binfmt_misc needed for entry point).
+# Wine wrappers — explicit FEX invocation (no binfmt_misc needed for entry point).
 # FEX propagates to child processes (wineserver, wine64-preloader) via exec() interception.
 # WineHQ stable uses a single "wine" binary (wine64 was merged in Wine 6.x).
-RUN printf '#!/bin/sh\nexec FEXInterpreter /opt/fex-rootfs/opt/wine-stable/bin/wine "$@"\n' \
+RUN printf '#!/bin/sh\nexec FEX /opt/fex-rootfs/opt/wine-stable/bin/wine "$@"\n' \
     > /usr/local/bin/wine \
- && printf '#!/bin/sh\nexec FEXInterpreter /opt/fex-rootfs/opt/wine-stable/bin/wine "$@"\n' \
+ && printf '#!/bin/sh\nexec FEX /opt/fex-rootfs/opt/wine-stable/bin/wine "$@"\n' \
     > /usr/local/bin/wine64 \
  && chmod +x /usr/local/bin/wine /usr/local/bin/wine64
 
