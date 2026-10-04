@@ -1,12 +1,17 @@
 # linux/amd64 variant — runs natively on Intel/AMD; runs via Rosetta 2 on Apple Silicon (fast)
 # Debian base supports wine32 via dpkg i386 multiarch, unlike Alpine which requires linux/386
-FROM --platform=linux/amd64 jlesage/baseimage-gui:debian-12-v4.12.4
+FROM --platform=linux/amd64 jlesage/baseimage-gui:debian-13-v4.12.4
 
 ARG XLANG=de
 
 # Install Wine from WineHQ stable (latest release, much newer than Debian's bundled version)
 # --install-recommends required — WineHQ uses Recommends for essential Wine runtime deps
-RUN dpkg --add-architecture i386 \
+# init_env/cleanup_env (jlesage cmn-pkg, same as add-pkg uses): create /config/log,
+# /tmp/run and the user database, which only exist at runtime. trixie Recommends pull
+# in systemd/avahi/sane, whose postinst scripts fail without them.
+RUN . /opt/base/bin/cmn-pkg \
+ && init_env \
+ && dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
       wget \
@@ -18,7 +23,7 @@ RUN dpkg --add-architecture i386 \
       xkb-data \
  && mkdir -p /etc/apt/keyrings \
  && wget -qO /etc/apt/keyrings/winehq.key https://dl.winehq.org/wine-builds/winehq.key \
- && echo "deb [arch=amd64,i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
+ && echo "deb [arch=amd64,i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ trixie main" \
     > /etc/apt/sources.list.d/winehq.list \
  && apt-get update \
  && apt-get install -y --install-recommends winehq-stable \
@@ -26,6 +31,7 @@ RUN dpkg --add-architecture i386 \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \
  && apt-get clean \
+ && cleanup_env \
  && rm -rf /var/lib/apt/lists/* /tmp/*
 
 COPY init-install.sh /init-install.sh

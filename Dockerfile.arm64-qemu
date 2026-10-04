@@ -10,7 +10,7 @@
 #   - Host binfmt_misc entry invokes qemu-i386-static automatically on any i386 binary exec
 #
 # Performance vs Rosetta 2: ~3-5x slower, but sufficient for GUI usage (no heavy compute)
-FROM --platform=linux/arm64 jlesage/baseimage-gui:debian-12-v4.12.4
+FROM --platform=linux/arm64 jlesage/baseimage-gui:debian-13-v4.12.4
 
 ARG XLANG=de
 
@@ -23,7 +23,12 @@ RUN apt-get update \
 
 # Wine32 from WineHQ stable i386 packages — QEMU handles i386→arm64 translation at runtime
 # arch=i386 only: WineHQ has no native arm64 build; we install the 32-bit i386 packages
-RUN dpkg --add-architecture i386 \
+# init_env/cleanup_env (jlesage cmn-pkg, same as add-pkg uses): create /config/log,
+# /tmp/run and the user database, which only exist at runtime. trixie Recommends pull
+# in systemd/avahi/sane, whose postinst scripts fail without them.
+RUN . /opt/base/bin/cmn-pkg \
+ && init_env \
+ && dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
       wget \
@@ -35,7 +40,7 @@ RUN dpkg --add-architecture i386 \
       xkb-data \
  && mkdir -p /etc/apt/keyrings \
  && wget -qO /etc/apt/keyrings/winehq.key https://dl.winehq.org/wine-builds/winehq.key \
- && echo "deb [arch=i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
+ && echo "deb [arch=i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ trixie main" \
     > /etc/apt/sources.list.d/winehq.list \
  && apt-get update \
  && apt-get install -y --install-recommends winehq-stable:i386 \
@@ -43,6 +48,7 @@ RUN dpkg --add-architecture i386 \
       https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
  && chmod +x /usr/bin/winetricks \
  && apt-get clean \
+ && cleanup_env \
  && rm -rf /var/lib/apt/lists/* /tmp/*
 
 COPY init-install.sh /init-install.sh

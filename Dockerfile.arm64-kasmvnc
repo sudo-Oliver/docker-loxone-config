@@ -4,7 +4,7 @@
 #
 # One-time host prerequisite (registers i386 binfmt for wine32):
 #   docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-FROM --platform=linux/arm64 debian:12-slim
+FROM --platform=linux/arm64 debian:13-slim
 
 ARG KASMVNC_VER=1.4.0
 ARG XLANG=de
@@ -28,11 +28,11 @@ RUN apt-get update \
       libxcursor1 \
       libxi6 \
       libxtst6 \
-      libssl3 \
+      libssl3t64 \
       libnss3 \
       libnspr4 \
       libpulse0 \
-      libasound2 \
+      libasound2t64 \
       libxrandr2 \
       libxfixes3 \
       libxdamage1 \
@@ -41,20 +41,23 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Install KasmVNC arm64 — native speed on ARM64
-# v1.4.0 is the first version with bookworm (Debian 12) .deb packages
-RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VER}/kasmvncserver_bookworm_${KASMVNC_VER}_arm64.deb" \
+# v1.4.0 ships trixie (Debian 13) .deb packages
+RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VER}/kasmvncserver_trixie_${KASMVNC_VER}_arm64.deb" \
  && apt-get update \
- && apt-get install -y --no-install-recommends "./kasmvncserver_bookworm_${KASMVNC_VER}_arm64.deb" \
- && rm -f "kasmvncserver_bookworm_${KASMVNC_VER}_arm64.deb" \
+ && apt-get install -y --no-install-recommends "./kasmvncserver_trixie_${KASMVNC_VER}_arm64.deb" \
+ && rm -f "kasmvncserver_trixie_${KASMVNC_VER}_arm64.deb" \
  && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && printf '#!/bin/sh\nmkdir -p "$HOME/.vnc"\nprintf "#!/bin/sh\\nopenbox \&\\n" > "$HOME/.vnc/xstartup"\nchmod +x "$HOME/.vnc/xstartup"\nexit 0\n' \
+    > /usr/lib/kasmvncserver/select-de.sh \
+ && chmod +x /usr/lib/kasmvncserver/select-de.sh
 
 # Wine32 from WineHQ stable i386 packages — QEMU handles i386→arm64 translation at runtime
 # arch=i386 only: WineHQ has no native arm64 build; we install the 32-bit i386 packages
 RUN dpkg --add-architecture i386 \
  && mkdir -p /etc/apt/keyrings \
  && wget -qO /etc/apt/keyrings/winehq.key https://dl.winehq.org/wine-builds/winehq.key \
- && echo "deb [arch=i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ bookworm main" \
+ && echo "deb [arch=i386 signed-by=/etc/apt/keyrings/winehq.key] https://dl.winehq.org/wine-builds/debian/ trixie main" \
     > /etc/apt/sources.list.d/winehq.list \
  && apt-get update \
  && apt-get install -y --install-recommends winehq-stable:i386 \
