@@ -75,6 +75,26 @@ if [ -d /opt/fex-rootfs ] && command -v FEX >/dev/null 2>&1; then
   echo "FEX: configured rootfs → /opt/fex-rootfs"
 fi
 
+# ── Loxone project folder (LOXONE_PATH) ──────────────────────────────────────
+# docker-compose.yml mounts LOXONE_PATH at users/app/Documents/Loxone (the jlesage
+# user), but KasmVNC images run Wine as root, so Config saves to
+# users/root/Documents/Loxone instead. Point that folder at the mount so projects
+# land in LOXONE_PATH on the host. Existing data is copied over (no overwrite) and
+# the old folder is kept as Loxone.pre-mount for manual cleanup.
+WINE_USERS="${WINEPREFIX:-/config/wine}/drive_c/users"
+LOX_MOUNT="$WINE_USERS/app/Documents/Loxone"
+LOX_WINE="$WINE_USERS/$(whoami)/Documents/Loxone"
+if [ "$LOX_MOUNT" != "$LOX_WINE" ] && mountpoint -q "$LOX_MOUNT" 2>/dev/null \
+   && [ ! -L "$LOX_WINE" ]; then
+  mkdir -p "$(dirname "$LOX_WINE")"
+  if [ -d "$LOX_WINE" ]; then
+    cp -an "$LOX_WINE/." "$LOX_MOUNT/" \
+      && mv "$LOX_WINE" "$LOX_WINE.pre-mount" \
+      && echo "Loxone: copied existing projects into LOXONE_PATH (old folder: Documents/Loxone.pre-mount)"
+  fi
+  [ -e "$LOX_WINE" ] || ln -s "$LOX_MOUNT" "$LOX_WINE"
+fi
+
 # ── Application loop ──────────────────────────────────────────────────────────
 # startapp.sh handles first-run installation and Wine startup.
 # 'exec wine' inside startapp.sh replaces the subshell — when wine exits,
