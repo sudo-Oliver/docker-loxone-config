@@ -70,6 +70,7 @@ RUN apt-get update \
       unzip \
       openbox \
       cabextract \
+      socat \
       msitools \
       p7zip-full \
       libglu1-mesa \

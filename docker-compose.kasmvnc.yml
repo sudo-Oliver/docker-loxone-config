@@ -20,6 +20,8 @@ services:
     ports:
       - "${HTTP_PORT:-6901}:6901"
       - "${VNC_PORT:-5901}:5901"
+      # Loxone Config MCP Server (17.3+) — localhost only: the server has no auth
+      - "127.0.0.1:${MCP_PORT:-57707}:57708"
     environment:
       - VNC_PW=${VNC_PASSWORD:-changeme}
       - VNC_USER=${VNC_USER:-kasm_user}
@@ -29,4 +31,5 @@ services:
       - WINEARCH=win64
       - WINEDLLOVERRIDES=mfc140u,msvcp140,vcruntime140,vcruntime140_1,ucrtbase,concrt140=n,b
       - KEEP_APP_RUNNING=${KEEP_APP_RUNNING:-1}
+      - MCP_PORT=${MCP_PORT:-57707}
       - QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox

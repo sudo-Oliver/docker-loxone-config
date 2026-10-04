@@ -95,6 +95,16 @@ if [ "$LOX_MOUNT" != "$LOX_WINE" ] && mountpoint -q "$LOX_MOUNT" 2>/dev/null \
   [ -e "$LOX_WINE" ] || ln -s "$LOX_MOUNT" "$LOX_WINE"
 fi
 
+# ── Loxone Config MCP Server forwarder ───────────────────────────────────────
+# Config 17.3+ serves its MCP Server on 127.0.0.1:${MCP_PORT} inside the container
+# only. socat re-exposes it on 0.0.0.0:57708 so Docker can publish it to the host
+# (docker-compose.kasmvnc.yml binds it to the host's 127.0.0.1 by default).
+MCP_PORT="${MCP_PORT:-57707}"
+if command -v socat >/dev/null 2>&1; then
+  socat TCP-LISTEN:57708,fork,reuseaddr "TCP:127.0.0.1:${MCP_PORT}" &
+  echo "MCP: forwarding container port 57708 → 127.0.0.1:${MCP_PORT}"
+fi
+
 # ── Application loop ──────────────────────────────────────────────────────────
 # startapp.sh handles first-run installation and Wine startup.
 # 'exec wine' inside startapp.sh replaces the subshell — when wine exits,

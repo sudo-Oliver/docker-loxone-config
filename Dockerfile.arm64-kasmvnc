@@ -37,6 +37,7 @@ RUN apt-get update \
       libxfixes3 \
       libxdamage1 \
       cabextract \
+      socat \
       qemu-user-static \
  && rm -rf /var/lib/apt/lists/*
 
