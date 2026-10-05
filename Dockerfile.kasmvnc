@@ -2,7 +2,7 @@
 # Improvements: WebP/JPEG adaptive streaming, full clipboard, dynamic resolution,
 # file upload/download, proper password length, no Xvfb+noVNC chain
 # Use with: docker-compose.kasmvnc.yml override (port 6901)
-FROM --platform=linux/amd64 debian:12-slim
+FROM --platform=linux/amd64 debian:13-slim
 
 ARG KASMVNC_VER=1.4.0
 ARG XLANG=de
@@ -36,14 +36,15 @@ RUN apt-get update \
       libxfixes3 \
       libxdamage1 \
       cabextract \
+      winbind \
  && rm -rf /var/lib/apt/lists/*
 
 # Install KasmVNC — provides its own Xvnc server + modern web UI on port 6901
 # v1.4.0 is the first version with bookworm (Debian 12) .deb packages
-RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VER}/kasmvncserver_bookworm_${KASMVNC_VER}_amd64.deb" \
+RUN wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VER}/kasmvncserver_trixie_${KASMVNC_VER}_amd64.deb" \
  && apt-get update \
- && apt-get install -y --no-install-recommends "./kasmvncserver_bookworm_${KASMVNC_VER}_amd64.deb" \
- && rm -f "kasmvncserver_bookworm_${KASMVNC_VER}_amd64.deb" \
+ && apt-get install -y --no-install-recommends "./kasmvncserver_trixie_${KASMVNC_VER}_amd64.deb" \
+ && rm -f "kasmvncserver_trixie_${KASMVNC_VER}_amd64.deb" \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* \
  && printf '#!/bin/sh\nmkdir -p "$HOME/.vnc"\nprintf "#!/bin/sh\\nopenbox \&\\n" > "$HOME/.vnc/xstartup"\nchmod +x "$HOME/.vnc/xstartup"\nexit 0\n' \

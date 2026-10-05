@@ -17,7 +17,7 @@ services:
       - DISPLAY_HEIGHT=${DISPLAY_HEIGHT:-1080}
       - HOME=/config
       - WINEPREFIX=/config/wine
-      - WINEARCH=win32
+      - WINEARCH=win64
       - XLANG=${XLANG:-de}
       - VNC_PASSWORD=${VNC_PASSWORD:-}
       - SECURE_CONNECTION=${SECURE_CONNECTION:-0}
